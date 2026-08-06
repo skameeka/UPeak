@@ -67,18 +67,19 @@
     return fallback;
   }
 
-  function setFieldError(input, errorEl, key, fallback) {
-    if (!input || !errorEl) return;
+  // target — поле ввода или группа радиокнопок: подсветка и сообщение одинаковы.
+  function setFieldError(target, errorEl, key, fallback) {
+    if (!target || !errorEl) return;
     if (key) {
       errorEl.setAttribute("data-i18n", key);
       errorEl.textContent = t(key, fallback || "");
       errorEl.classList.add("is-visible");
-      input.classList.add("is-invalid");
-      input.setAttribute("aria-invalid", "true");
+      target.classList.add("is-invalid");
+      target.setAttribute("aria-invalid", "true");
     } else {
       errorEl.classList.remove("is-visible");
-      input.classList.remove("is-invalid");
-      input.removeAttribute("aria-invalid");
+      target.classList.remove("is-invalid");
+      target.removeAttribute("aria-invalid");
     }
   }
 
@@ -105,20 +106,12 @@
   }
 
   function setSurveyError(question, key, fallback) {
-    var group = document.getElementById(question.groupId);
-    var errorEl = document.getElementById(question.errorId);
-    if (!group || !errorEl) return;
-    if (key) {
-      errorEl.setAttribute("data-i18n", key);
-      errorEl.textContent = t(key, fallback || "");
-      errorEl.classList.add("is-visible");
-      group.classList.add("is-invalid");
-      group.setAttribute("aria-invalid", "true");
-    } else {
-      errorEl.classList.remove("is-visible");
-      group.classList.remove("is-invalid");
-      group.removeAttribute("aria-invalid");
-    }
+    setFieldError(
+      document.getElementById(question.groupId),
+      document.getElementById(question.errorId),
+      key,
+      fallback
+    );
   }
 
   function clearFieldErrors() {

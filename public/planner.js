@@ -406,74 +406,51 @@
     ].join("");
   }
 
+  function callIfPresent(api, method, data) {
+    if (api && typeof api[method] === "function") api[method](data);
+  }
+
+  // Пара «матрица рекомендаций + матрица решений» грузится одинаково для утра
+  // и вечера: сначала базовая матрица, затем матрица решений с её версией.
+  function loadMatrixPair(config) {
+    return fetch(config.matrixUrl)
+      .then(function (res) {
+        if (!res.ok) throw new Error(config.matrixUrl + " fetch failed");
+        return res.json();
+      })
+      .then(function (data) {
+        callIfPresent(config.api(), config.setMatrix, data);
+        return fetch(config.decisionUrl);
+      })
+      .then(function (res) {
+        if (!res || !res.ok) return null;
+        return res.json();
+      })
+      .then(function (data) {
+        if (!data) return;
+        callIfPresent(config.api(), "setDecisionMatrix", data);
+        if (data.meta && data.meta.version) config.onVersion(String(data.meta.version));
+      })
+      .catch(function () {});
+  }
+
   function loadRecommendationMatrix(done) {
-    var morningReady = false;
-    var eveningReady = false;
-
-    function finish() {
-      if (!morningReady || !eveningReady) return;
-      done();
-    }
-
-    fetch("./day-recommendation-matrix.json")
-      .then(function (res) {
-        if (!res.ok) throw new Error("matrix fetch failed");
-        return res.json();
+    Promise.all([
+      loadMatrixPair({
+        matrixUrl: "./day-recommendation-matrix.json",
+        decisionUrl: "./day-decision-matrix.json",
+        setMatrix: "setRecommendationMatrix",
+        api: function () { return window.UpeakDayRecommendations; },
+        onVersion: function (version) { morningMatrixVersion = version; }
+      }),
+      loadMatrixPair({
+        matrixUrl: "./evening-recommendation-matrix.json",
+        decisionUrl: "./evening-decision-matrix.json",
+        setMatrix: "setEveningMatrix",
+        api: function () { return window.UpeakEveningRecommendations; },
+        onVersion: function (version) { eveningMatrixVersion = version; }
       })
-      .then(function (data) {
-        if (window.UpeakDayRecommendations && typeof window.UpeakDayRecommendations.setRecommendationMatrix === "function") {
-          window.UpeakDayRecommendations.setRecommendationMatrix(data);
-        }
-        return fetch("./day-decision-matrix.json");
-      })
-      .then(function (res) {
-        if (!res || !res.ok) return null;
-        return res.json();
-      })
-      .then(function (data) {
-        if (data && window.UpeakDayRecommendations &&
-            typeof window.UpeakDayRecommendations.setDecisionMatrix === "function") {
-          window.UpeakDayRecommendations.setDecisionMatrix(data);
-        }
-        if (data && data.meta && data.meta.version) {
-          morningMatrixVersion = String(data.meta.version);
-        }
-      })
-      .catch(function () {})
-      .then(function () {
-        morningReady = true;
-        finish();
-      });
-
-    fetch("./evening-recommendation-matrix.json")
-      .then(function (res) {
-        if (!res.ok) throw new Error("evening matrix fetch failed");
-        return res.json();
-      })
-      .then(function (data) {
-        if (window.UpeakEveningRecommendations && typeof window.UpeakEveningRecommendations.setEveningMatrix === "function") {
-          window.UpeakEveningRecommendations.setEveningMatrix(data);
-        }
-        return fetch("./evening-decision-matrix.json");
-      })
-      .then(function (res) {
-        if (!res || !res.ok) return null;
-        return res.json();
-      })
-      .then(function (data) {
-        if (data && window.UpeakEveningRecommendations &&
-            typeof window.UpeakEveningRecommendations.setDecisionMatrix === "function") {
-          window.UpeakEveningRecommendations.setDecisionMatrix(data);
-        }
-        if (data && data.meta && data.meta.version) {
-          eveningMatrixVersion = String(data.meta.version);
-        }
-      })
-      .catch(function () {})
-      .then(function () {
-        eveningReady = true;
-        finish();
-      });
+    ]).then(function () { done(); });
   }
 
   loadRecommendationMatrix(bootPlanner);

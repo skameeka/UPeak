@@ -3,33 +3,20 @@
 const fs = require("fs");
 const path = require("path");
 const dayState = require("../lib/day-state");
+const csv = require("../lib/csv");
+
+require("../public/day-recommendations.js");
 
 const OUT_DIR = path.join(__dirname, "..", "output");
 const OUT_CSV = path.join(OUT_DIR, "state-matrix-625.csv");
 const OUT_SUMMARY = path.join(OUT_DIR, "state-matrix-summary.txt");
 
-function loadRecommendations() {
-  const code = fs.readFileSync(
-    path.join(__dirname, "..", "public", "day-recommendations.js"),
-    "utf8"
-  );
-  return new Function(code + "; return UpeakDayRecommendations;")();
-}
-
 function stateKey(row) {
   return row.sub_state ? row.state + " + " + row.sub_state : row.state;
 }
 
-function escapeCsv(value) {
-  var s = String(value == null ? "" : value);
-  if (s.indexOf(",") !== -1 || s.indexOf('"') !== -1 || s.indexOf("\n") !== -1) {
-    return '"' + s.replace(/"/g, '""') + '"';
-  }
-  return s;
-}
-
 function main() {
-  var rec = loadRecommendations();
+  var rec = globalThis.UpeakDayRecommendations;
   var rows = [];
   var counts = {};
 
@@ -85,11 +72,7 @@ function main() {
     "template_key"
   ];
 
-  var csv = [header.join(",")];
-  rows.forEach(function (row) {
-    csv.push(header.map(function (col) { return escapeCsv(row[col]); }).join(","));
-  });
-  fs.writeFileSync(OUT_CSV, csv.join("\n"), "utf8");
+  fs.writeFileSync(OUT_CSV, csv.toCsv(header, rows), "utf8");
 
   var total = rows.length;
   var summary = ["State distribution (" + total + " combinations, metrics 1-5 each)", ""];

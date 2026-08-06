@@ -1,6 +1,9 @@
 (function (root) {
   "use strict";
 
+  var utils = root.UpeakRecommendationUtils ||
+    (typeof require === "function" ? require("./recommendation-utils.js") : null);
+
   var PLAN_LABEL = "Завтра";
   var EVENING_TITLE = "Итог дня";
   var MAX_EMBED_OFFERS = 1;
@@ -20,14 +23,8 @@
 
   var DECISION_MATRIX = null;
 
-  var EVIDENCE_LEVEL_LABELS = {
-    High: "Высокая",
-    Medium: "Средняя",
-    Low: "Низкая"
-  };
-
   var RESULT_CONDITION = "Если следовать рекомендациям выше:";
-  var RESULT_DISCLAIMER = "Ориентировочная оценка, не гарантия — зависит от контекста и задач.";
+  var RESULT_DISCLAIMER = utils.RESULT_DISCLAIMER;
 
   function setEveningMatrix() {
     // Legacy evening-recommendation-matrix.json — не используется в MVP-маршрутизации.
@@ -95,29 +92,6 @@
     return String(template || "").replace(/\{pct\}/g, String(pct));
   }
 
-  function formatSourceLabel(src) {
-    if (!src) return null;
-    return src.title +
-      (src.authors ? " — " + src.authors : "") +
-      (src.year ? " (" + src.year + ")" : "");
-  }
-
-  function buildProofFromEvidence(entry) {
-    if (!entry || !entry.evidence) return null;
-    var ev = entry.evidence;
-    if (!ev.basis && !ev.level && !(Array.isArray(ev.sources) && ev.sources.length)) return null;
-    var sources = Array.isArray(ev.sources) ? ev.sources.slice() : [];
-    var primary = sources.length ? sources[0] : null;
-    return {
-      text: ev.basis || "",
-      evidence_level: EVIDENCE_LEVEL_LABELS[ev.level] || ev.level || null,
-      limitations: [RESULT_DISCLAIMER],
-      sources: sources,
-      source: formatSourceLabel(primary),
-      url: primary && primary.url ? primary.url : null
-    };
-  }
-
   // Утреннее состояние упоминается только там, где контраст с итогом дня
   // меняет смысл (morning_variants в матрице). Иначе — молчим про утро,
   // чтобы не ломать «одна причина → одно решение».
@@ -157,8 +131,8 @@
   function composeCardFromDecision(entry, completionPct, decisionKey) {
     if (!entry || !entry.narrative_text) return null;
 
-    var proof = buildProofFromEvidence(entry);
-    var hasProof = !!(proof && (proof.text || (proof.sources && proof.sources.length)));
+    var proof = utils.buildProofFromEvidence(entry);
+    var hasProof = utils.hasProof(proof);
     var actions = Array.isArray(entry.today_action) ? entry.today_action.slice() : [];
 
     return {
@@ -219,35 +193,6 @@
     return false;
   }
 
-  function embedStatus(offerId, ctx) {
-    if (ctx.decisions[offerId] === "added") return "added";
-    if (ctx.existingIds.indexOf("evening:" + offerId) !== -1) return "added";
-    if (ctx.decisions[offerId] === "later") return "later";
-    return "pending";
-  }
-
-  function matchesEmbedWhen(when, ctx) {
-    if (!when || typeof when !== "object") return true;
-    if (Array.isArray(when.any)) {
-      return when.any.some(function (key) {
-        return !!ctx[key];
-      });
-    }
-    return Object.keys(when).every(function (key) {
-      return !when[key] || !!ctx[key];
-    });
-  }
-
-  // Плашка с "unless" не показывается, если хотя бы один из перечисленных
-  // сигналов активен — даже если её собственное "when" тоже совпало.
-  // Пример: не предлагаем "первый шаг", если карточка уже про усталость.
-  function matchesEmbedUnless(unless, ctx) {
-    if (!Array.isArray(unless) || !unless.length) return true;
-    return !unless.some(function (key) {
-      return !!ctx[key];
-    });
-  }
-
   function buildEmbedContext(evening, cBand, options) {
     options = options || {};
     return {
@@ -263,39 +208,17 @@
   }
 
   function getEveningEmbeddable(embedId) {
-    if (!DECISION_MATRIX || !Array.isArray(DECISION_MATRIX.embeddables)) return null;
-    for (var i = 0; i < DECISION_MATRIX.embeddables.length; i++) {
-      if (DECISION_MATRIX.embeddables[i].id === embedId) return DECISION_MATRIX.embeddables[i];
-    }
-    return null;
+    return utils.findEmbeddableById(DECISION_MATRIX && DECISION_MATRIX.embeddables, embedId);
   }
 
   function pickEveningEmbeddables(evening, cBand, options) {
-    if (!DECISION_MATRIX || !Array.isArray(DECISION_MATRIX.embeddables) || !evening) return [];
-
-    var ctx = buildEmbedContext(evening, cBand, options);
-    return DECISION_MATRIX.embeddables
-      .filter(function (offer) {
-        if (!offer || !offer.id) return false;
-        var status = embedStatus(offer.id, ctx);
-        if (status === "later" || status === "added") return false;
-        if (isEveningEmbedDuplicated(offer, ctx)) return false;
-        if (!matchesEmbedUnless(offer.unless, ctx)) return false;
-        return matchesEmbedWhen(offer.when, ctx);
-      })
-      .sort(function (a, b) {
-        return (a.priority || 99) - (b.priority || 99);
-      })
-      .slice(0, MAX_EMBED_OFFERS)
-      .map(function (offer) {
-        return {
-          id: offer.id,
-          prompt: offer.prompt || "",
-          detail: offer.detail || "",
-          status: embedStatus(offer.id, ctx),
-          task: offer.task ? Object.assign({}, offer.task) : null
-        };
-      });
+    if (!evening) return [];
+    var embeddables = DECISION_MATRIX && DECISION_MATRIX.embeddables;
+    return utils.pickEmbeddables(embeddables, buildEmbedContext(evening, cBand, options), {
+      scope: "evening",
+      max: MAX_EMBED_OFFERS,
+      exclude: isEveningEmbedDuplicated
+    });
   }
 
   function getRecommendations(input) {

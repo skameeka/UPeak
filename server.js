@@ -62,6 +62,33 @@ function sanitizeEvent(input) {
   };
 }
 
+// Общая обвязка маршрутов: единый лог и 500 на любую необработанную ошибку.
+function route(label, handler) {
+  return async function (req, res) {
+    try {
+      await handler(req, res);
+    } catch (error) {
+      console.error(label + " failed", error);
+      res.status(500).json({ ok: false, error: "Internal server error" });
+    }
+  };
+}
+
+function upstreamPayload(req, body, token) {
+  return Object.assign({}, body, {
+    proxyToken: token,
+    receivedAt: new Date().toISOString(),
+    ip: req.ip || "",
+    userAgent: sanitizeString(req.get("user-agent"), 500)
+  });
+}
+
+function sendUpstreamError(res, status, body) {
+  const payload = { ok: false, error: "Apps Script upstream error", status: status };
+  if (body != null) payload.body = String(body).slice(0, 500);
+  return res.status(502).json(payload);
+}
+
 async function callAppsScript(url, body) {
   const response = await fetch(url, {
     method: "POST",
@@ -89,138 +116,103 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-app.post("/api/register", async (req, res) => {
-  try {
-    if (!REGISTRATION_APPS_SCRIPT_URL) {
-      return res.status(503).json({ ok: false, error: "REGISTRATION_APPS_SCRIPT_URL is not configured" });
-    }
-
-    const body = Object.assign({}, req.body || {}, {
-      proxyToken: REGISTRATION_APPS_SCRIPT_TOKEN,
-      receivedAt: new Date().toISOString(),
-      ip: req.ip || "",
-      userAgent: sanitizeString(req.get("user-agent"), 500)
-    });
-
-    const upstream = await callAppsScript(REGISTRATION_APPS_SCRIPT_URL, body);
-    if (!upstream.ok) {
-      return res.status(502).json({
-        ok: false,
-        error: "Apps Script upstream error",
-        status: upstream.status,
-        body: upstream.text.slice(0, 500)
-      });
-    }
-
-    return res.status(200).json({
-      ok: true,
-      upstream: upstream.parsed,
-      participantId: upstream.parsed && upstream.parsed.participantId ? upstream.parsed.participantId : ""
-    });
-  } catch (error) {
-    console.error("POST /api/register failed", error);
-    return res.status(500).json({ ok: false, error: "Internal server error" });
+app.post("/api/register", route("POST /api/register", async (req, res) => {
+  if (!REGISTRATION_APPS_SCRIPT_URL) {
+    return res.status(503).json({ ok: false, error: "REGISTRATION_APPS_SCRIPT_URL is not configured" });
   }
-});
 
-app.get("/api/participant/lookup", async (req, res) => {
-  try {
-    const id = sanitizeString(req.query.id, 40);
-    if (!id) {
-      return res.status(400).json({ ok: false, error: "id is required" });
-    }
+  const body = upstreamPayload(req, req.body || {}, REGISTRATION_APPS_SCRIPT_TOKEN);
 
-    if (!REGISTRATION_APPS_SCRIPT_URL) {
-      return res.status(503).json({ ok: false, error: "REGISTRATION_APPS_SCRIPT_URL is not configured" });
-    }
-
-    const url =
-      REGISTRATION_APPS_SCRIPT_URL +
-      (REGISTRATION_APPS_SCRIPT_URL.indexOf("?") >= 0 ? "&" : "?") +
-      "action=lookup&id=" +
-      encodeURIComponent(id) +
-      (REGISTRATION_APPS_SCRIPT_TOKEN
-        ? "&proxyToken=" + encodeURIComponent(REGISTRATION_APPS_SCRIPT_TOKEN)
-        : "");
-
-    const response = await fetch(url, { method: "GET", redirect: "follow" });
-    const text = await response.text();
-
-    let parsed = {};
-    try {
-      parsed = JSON.parse(text);
-    } catch (_e) {}
-
-    if (!response.ok) {
-      return res.status(502).json({ ok: false, error: "Apps Script upstream error", status: response.status });
-    }
-
-    return res.status(200).json({
-      ok: true,
-      exists: !!parsed.exists,
-      id,
-      participant: parsed.participant || null
-    });
-  } catch (error) {
-    console.error("GET /api/participant/lookup failed", error);
-    return res.status(500).json({ ok: false, error: "Internal server error" });
+  const upstream = await callAppsScript(REGISTRATION_APPS_SCRIPT_URL, body);
+  if (!upstream.ok) {
+    return sendUpstreamError(res, upstream.status, upstream.text);
   }
-});
 
-app.post("/api/events", async (req, res) => {
-  try {
-    if (!PLANNER_APPS_SCRIPT_URL) {
-      return res.status(503).json({ ok: false, error: "PLANNER_APPS_SCRIPT_URL is not configured" });
-    }
+  return res.status(200).json({
+    ok: true,
+    upstream: upstream.parsed,
+    participantId: upstream.parsed && upstream.parsed.participantId ? upstream.parsed.participantId : ""
+  });
+}));
 
-    const event = sanitizeEvent(req.body || {});
-
-    if (!event.eventType || !ALLOWED_EVENT_TYPES.has(event.eventType)) {
-      return res.status(400).json({ ok: false, error: "Invalid eventType" });
-    }
-
-    if (!event.timestamp || !event.date) {
-      return res.status(400).json({ ok: false, error: "timestamp and date are required" });
-    }
-
-    if (!event.participantId) {
-      return res.status(400).json({ ok: false, error: "participantId is required" });
-    }
-
-    const body = Object.assign({}, event, {
-      proxyToken: PLANNER_APPS_SCRIPT_TOKEN,
-      receivedAt: new Date().toISOString(),
-      ip: req.ip || "",
-      userAgent: sanitizeString(req.get("user-agent"), 500)
-    });
-
-    const upstream = await callAppsScript(PLANNER_APPS_SCRIPT_URL, body);
-    if (!upstream.ok) {
-      return res.status(502).json({
-        ok: false,
-        error: "Apps Script upstream error",
-        status: upstream.status,
-        body: upstream.text.slice(0, 500)
-      });
-    }
-
-    return res.status(200).json({ ok: true, upstream: upstream.parsed });
-  } catch (error) {
-    console.error("POST /api/events failed", error);
-    return res.status(500).json({ ok: false, error: "Internal server error" });
+app.get("/api/participant/lookup", route("GET /api/participant/lookup", async (req, res) => {
+  const id = sanitizeString(req.query.id, 40);
+  if (!id) {
+    return res.status(400).json({ ok: false, error: "id is required" });
   }
-});
 
-app.get("/", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
+  if (!REGISTRATION_APPS_SCRIPT_URL) {
+    return res.status(503).json({ ok: false, error: "REGISTRATION_APPS_SCRIPT_URL is not configured" });
+  }
 
-app.get("/planner", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "planner.html"));
-});
+  const url =
+    REGISTRATION_APPS_SCRIPT_URL +
+    (REGISTRATION_APPS_SCRIPT_URL.indexOf("?") >= 0 ? "&" : "?") +
+    "action=lookup&id=" +
+    encodeURIComponent(id) +
+    (REGISTRATION_APPS_SCRIPT_TOKEN
+      ? "&proxyToken=" + encodeURIComponent(REGISTRATION_APPS_SCRIPT_TOKEN)
+      : "");
 
-app.get("/participate", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "participate.html"));
+  const response = await fetch(url, { method: "GET", redirect: "follow" });
+  const text = await response.text();
+
+  let parsed = {};
+  try {
+    parsed = JSON.parse(text);
+  } catch (_e) {}
+
+  if (!response.ok) {
+    return sendUpstreamError(res, response.status, null);
+  }
+
+  return res.status(200).json({
+    ok: true,
+    exists: !!parsed.exists,
+    id,
+    participant: parsed.participant || null
+  });
+}));
+
+app.post("/api/events", route("POST /api/events", async (req, res) => {
+  if (!PLANNER_APPS_SCRIPT_URL) {
+    return res.status(503).json({ ok: false, error: "PLANNER_APPS_SCRIPT_URL is not configured" });
+  }
+
+  const event = sanitizeEvent(req.body || {});
+
+  if (!event.eventType || !ALLOWED_EVENT_TYPES.has(event.eventType)) {
+    return res.status(400).json({ ok: false, error: "Invalid eventType" });
+  }
+
+  if (!event.timestamp || !event.date) {
+    return res.status(400).json({ ok: false, error: "timestamp and date are required" });
+  }
+
+  if (!event.participantId) {
+    return res.status(400).json({ ok: false, error: "participantId is required" });
+  }
+
+  const body = upstreamPayload(req, event, PLANNER_APPS_SCRIPT_TOKEN);
+
+  const upstream = await callAppsScript(PLANNER_APPS_SCRIPT_URL, body);
+  if (!upstream.ok) {
+    return sendUpstreamError(res, upstream.status, upstream.text);
+  }
+
+  return res.status(200).json({ ok: true, upstream: upstream.parsed });
+}));
+
+const PAGE_ROUTES = {
+  "/": "index.html",
+  "/planner": "planner.html",
+  "/participate": "participate.html"
+};
+
+Object.keys(PAGE_ROUTES).forEach((routePath) => {
+  app.get(routePath, (_req, res) => {
+    res.sendFile(path.join(__dirname, "public", PAGE_ROUTES[routePath]));
+  });
 });
 
 app.listen(PORT, () => {
