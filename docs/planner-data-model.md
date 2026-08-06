@@ -38,6 +38,7 @@ flowchart TD
 | `Recommendations` | `recommendation_id` = `{day_id}::{scope}` | одна строка на (день, утро/вечер): card_id, текст-снимок, helpful |
 | `Plan_Runs` | `plan_run_id` | одно нажатие «Распределить»: входной объём, сколько оставлено/перенесено, readiness |
 | `Plan_Items` | `plan_item_id` = `{plan_run_id}::{task_id}` | снимок решения алгоритма по каждой задаче и её последующее выполнение |
+| `Feedback` | `user_id` | финальный отзыв участника (полезность, помощь в понимании состояния/распределении нагрузки, желание продолжать, открытые ответы); одна строка на участника, повторная отправка обновляет ответы |
 | `Recommendations_Catalog` | `card_id` | статичный справочник card_id → человекочитаемое название |
 
 Полные списки колонок — `SHEET_COLUMNS` в `lib/planner-schema.js` (и
@@ -65,6 +66,7 @@ flowchart TD
 | `morning_embed_added` / `evening_embed_added` | upsert `Tasks` (`source=embed_suggestion`, `embed_id`) |
 | `card_feedback` | upsert `Recommendations` (`helpful`, `feedback_at`) + `Days` |
 | `morning_recommendation_shown` / `evening_recommendation_shown` | upsert `Recommendations` (`card_id`, `recommendation_text`, `matrix_version`) + `Days`. Отправляются клиентом (`public/planner.js`) один раз в день при первом рендере карточки — без этого `Recommendations` была бы неполной для дней, где человек не ответил «Да/Нет» |
+| `final_feedback` | upsert `Feedback` по `user_id` (финальный опрос не привязан к конкретному дню, строка в `Days` не создаётся) |
 | `routine_activated` и всё остальное | только в `PlannerEvents`, как раньше |
 
 Если нормализованная запись упадёт (например, лист временно недоступен),

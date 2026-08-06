@@ -1326,3 +1326,52 @@ tr.task-row.drop-after td {
     text-align: center;
   }
 }
+/* Онбординг: модальная инструкция перед первым использованием. */
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.onboarding-overlay.hidden { display: none; }
+
+.onboarding-modal {
+  max-width: 640px;
+  width: 100%;
+  margin: auto 0;
+}
+
+.onboarding-modal h3 {
+  margin: 16px 0 8px;
+}
+
+.onboarding-steps {
+  margin: 0 0 16px;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+
+/* Финальный feedback: группы вариантов ответа. */
+.feedback-choice {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.feedback-choice legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+
+.feedback-choice .checkbox-label {
+  display: inline-flex;
+  margin-right: 12px;
+}

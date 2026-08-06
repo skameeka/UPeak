@@ -197,14 +197,15 @@ var ALLOWED_EVENTS = {
   morning_embed_added: true,
   evening_embed_added: true,
   morning_recommendation_shown: true,
-  evening_recommendation_shown: true
+  evening_recommendation_shown: true,
+  final_feedback: true
 };
 
 function doGet(_e) {
   return _jsonOutput_({
     ok: true,
     service: "upeak-planner-events",
-    version: 3,
+    version: 4,
     sheet: SHEET_NAME
   });
 }
@@ -326,6 +327,7 @@ function setup() {
   _getRecommendationsSheet_();
   _getPlanRunsSheet_();
   _getPlanItemsSheet_();
+  _getFeedbackSheet_();
   _ensureCatalogSeeded_();
   Logger.log("Planner database ready: " + sheet.getName() + " with " + sheet.getLastRow() + " rows.");
 }
@@ -437,6 +439,17 @@ var SHEET_COLUMNS = {
     "completion_time",
     "created_at"
   ],
+  Feedback: [
+    "user_id",
+    "timestamp",
+    "product_usefulness",
+    "state_understanding_help",
+    "planning_help",
+    "continue_using",
+    "most_useful",
+    "improvements",
+    "missing_if_removed"
+  ],
   Recommendations_Catalog: ["card_id", "scope", "kind", "title"]
 };
 
@@ -539,6 +552,25 @@ function buildPlanRunRows(dayId, userId, payload, generatedAt) {
       scheduled_snapshot_count: scheduled.length
     },
     items: items
+  };
+}
+
+function feedbackText(value) {
+  return String(value == null ? "" : value).slice(0, 1000);
+}
+
+function buildFeedbackRow(userId, payload, timestamp) {
+  payload = payload || {};
+  return {
+    user_id: String(userId || ""),
+    timestamp: String(timestamp || ""),
+    product_usefulness: payload.productUsefulness == null ? "" : Number(payload.productUsefulness),
+    state_understanding_help: feedbackText(payload.stateUnderstandingHelp),
+    planning_help: feedbackText(payload.planningHelp),
+    continue_using: feedbackText(payload.continueUsing),
+    most_useful: feedbackText(payload.mostUseful),
+    improvements: feedbackText(payload.improvements),
+    missing_if_removed: feedbackText(payload.missingIfRemoved)
   };
 }
 
@@ -906,6 +938,7 @@ function _getTasksSheet_() { return _getNormalizedSheet_("Tasks", SHEET_COLUMNS.
 function _getRecommendationsSheet_() { return _getNormalizedSheet_("Recommendations", SHEET_COLUMNS.Recommendations); }
 function _getPlanRunsSheet_() { return _getNormalizedSheet_("Plan_Runs", SHEET_COLUMNS.Plan_Runs); }
 function _getPlanItemsSheet_() { return _getNormalizedSheet_("Plan_Items", SHEET_COLUMNS.Plan_Items); }
+function _getFeedbackSheet_() { return _getNormalizedSheet_("Feedback", SHEET_COLUMNS.Feedback); }
 
 function _getCatalogSheet_() {
   var sheet = _getNormalizedSheet_("Recommendations_Catalog", SHEET_COLUMNS.Recommendations_Catalog);
@@ -1084,6 +1117,13 @@ function _applyRecommendationEvent_(eventType, dayId, scope, payload, nowIso) {
   });
 }
 
+function _applyFinalFeedback_(userId, payload, nowIso) {
+  var row = buildFeedbackRow(userId, payload, nowIso);
+  _upsertRow_(_getFeedbackSheet_(), SHEET_COLUMNS.Feedback, "user_id", userId, function () {
+    return row;
+  });
+}
+
 function _applyCardFeedback_(dayId, payload, nowIso) {
   var scope = _sanitize_(payload && payload.scope, 16);
   if (scope !== "morning" && scope !== "evening") return;
@@ -1106,6 +1146,14 @@ function _recordNormalized_(data, payload, nowIsoOverride) {
 
   _ensureCatalogSeeded_();
   _touchUser_(userId, nowIso);
+
+  // Финальный feedback не привязан к конкретному дню — пишем на отдельный
+  // лист Feedback (одна строка на user_id, повторная отправка обновляет ответы).
+  if (eventType === "final_feedback") {
+    _applyFinalFeedback_(userId, payload, nowIso);
+    return;
+  }
+
   var dayId = buildDayId(userId, date);
   _ensureDay_(dayId, userId, date, nowIso);
 
