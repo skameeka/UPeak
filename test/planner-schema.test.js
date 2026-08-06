@@ -138,6 +138,56 @@ test("mergeDaysRow: создаёт день и дополняет по част�
   assert.equal(afterEvening.updated_at, later);
 });
 
+test("mergeMorningCheckinRow: id чек-ина и day_id всегда равны dayId", function () {
+  var dayId = schema.buildDayId("UP-000007", "2026-07-14");
+  var row = schema.mergeMorningCheckinRow(
+    null,
+    dayId,
+    schema.buildMorningCheckinPatch({
+      sleepHours: 7,
+      sleepQuality: 4,
+      energy: 2,
+      stress: 2,
+      dayState: { state: "high_performance" }
+    }),
+    NOW
+  );
+  assert.equal(row.morning_checkin_id, dayId);
+  assert.equal(row.day_id, dayId);
+  assert.equal(row.sleep_hours, 7);
+  assert.equal(row.readiness, "");
+  assert.equal(row.created_at, NOW);
+
+  // Повторная отправка утреннего чек-ина дополняет строку, не сбрасывая её.
+  var later = "2026-07-14T09:30:00.000Z";
+  var updated = schema.mergeMorningCheckinRow(row, dayId, { readiness: 82 }, later);
+  assert.equal(updated.readiness, 82);
+  assert.equal(updated.sleep_hours, 7);
+  assert.equal(updated.created_at, NOW);
+});
+
+test("mergeEveningCheckinRow: id чек-ина и day_id всегда равны dayId", function () {
+  var dayId = schema.buildDayId("UP-000007", "2026-07-14");
+  var row = schema.mergeEveningCheckinRow(
+    null,
+    dayId,
+    schema.buildEveningCheckinPatch({ fatigue: 4, taskStart: 3, completed: 2, total: 5 }),
+    NOW
+  );
+  assert.equal(row.evening_checkin_id, dayId);
+  assert.equal(row.day_id, dayId);
+  assert.equal(row.start_difficulty, 3);
+  assert.equal(row.completed_tasks, 2);
+  assert.equal(row.procrastination, "");
+  assert.equal(row.created_at, NOW);
+
+  var later = "2026-07-14T22:10:00.000Z";
+  var updated = schema.mergeEveningCheckinRow(row, dayId, { note: "тяжёлый день" }, later);
+  assert.equal(updated.note, "тяжёлый день");
+  assert.equal(updated.fatigue, 4);
+  assert.equal(updated.created_at, NOW);
+});
+
 test("buildMorningCheckinPatch: маппит payload формы в патч", function () {
   var patch = schema.buildMorningCheckinPatch({
     sleepHours: 7,

@@ -223,6 +223,10 @@ app.get("/participate", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "participate.html"));
 });
 
-app.listen(PORT, () => {
-  console.log("Server started on port", PORT);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log("Server started on port", PORT);
+  });
+}
+
+module.exports = app;
