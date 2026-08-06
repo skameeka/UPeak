@@ -27,11 +27,16 @@
 2. Скопируй **весь** текст из `docs/CodeREG.gs` репозитория.
 3. Вставь и сохрани (Ctrl/Cmd+S).
 
-Опционально вверху файла:
+Вверху файла:
 - `SPREADSHEET_ID` — если скрипт не привязан к таблице;
-- `SHARED_TOKEN` — тот же секрет, что `REGISTRATION_APPS_SCRIPT_TOKEN` в `.env`.
+- `SHARED_TOKEN` — **обязательно**, тот же секрет, что `REGISTRATION_APPS_SCRIPT_TOKEN` в `.env`.
 
-Если `SHARED_TOKEN` оставить пустым — проверка токена выключена (удобно для первого теста).
+Деплой открыт для всего интернета (Who has access: Anyone), поэтому только `SHARED_TOKEN`
+отличает запросы прокси от чужих. Если оставить его пустым, скрипт отклоняет все
+запросы (fail-closed), а не разрешает их.
+
+Секреты (URL деплоя и токены) хранятся только в `.env` / переменных окружения Railway и
+никогда не коммитятся в репозиторий (в том числе в `.env.example`).
 
 ### 4. Задеплой как веб-приложение
 
@@ -48,7 +53,7 @@ REGISTRATION_APPS_SCRIPT_URL=https://script.google.com/macros/s/XXXX/exec
 REGISTRATION_APPS_SCRIPT_TOKEN=твой_секрет
 ```
 
-Если задал `SHARED_TOKEN` в Apps Script — токен в `.env` должен совпадать.
+Токен в `.env` должен совпадать с `SHARED_TOKEN` в Apps Script.
 
 ### 6. Перезапусти локальный сервер
 
@@ -76,7 +81,7 @@ npm start
 
 1. Отдельная Google-таблица для событий.
 2. Apps Script → вставить `docs/CodeAPP.gs`.
-3. При необходимости задать `SPREADSHEET_ID` и `SHARED_TOKEN`.
+3. Задать `SHARED_TOKEN` (обязательно) и, при необходимости, `SPREADSHEET_ID`.
 4. Deploy → Web app → Anyone.
 5. URL в `.env`:
 
@@ -98,4 +103,5 @@ PLANNER_APPS_SCRIPT_TOKEN=твой_секрет
 | 502 Apps Script upstream | старый/битый деплой | New version + Deploy |
 | Регистрация ok, но без ID | старый `CodeREG` без `participantId` | заново вставить код и задеплоить |
 | ID не находится в планировщике | нет lookup / не тот деплой | задеплоить свежий `CodeREG`, проверить URL регистрации |
-| unauthorized | токен не совпал | `SHARED_TOKEN` = токен в `.env` |
+| unauthorized / forbidden | токен не совпал или пустой `SHARED_TOKEN` | `SHARED_TOKEN` = токен в `.env`, передеплоить |
+| 429 Too many requests | сработал rate limit прокси | подождать минуту |

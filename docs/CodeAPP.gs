@@ -27,8 +27,9 @@
 var SPREADSHEET_ID = "";
 var SHEET_NAME = "PlannerEvents";
 
-// Необязательный общий токен между Railway-прокси и скриптом.
-// Если задан, отвечаем 403 без правильного токена.
+// Общий секрет между Railway-прокси и скриптом: без правильного токена отвечаем 403.
+// Обязательный секрет: должен совпадать с PLANNER_APPS_SCRIPT_TOKEN в .env.
+// Если оставить пустым, запись событий отклоняется (fail-closed).
 var SHARED_TOKEN = "";
 
 var HEADERS = [
@@ -159,6 +160,13 @@ function _sanitize_(value, maxLen) {
   return s;
 }
 
+// Значения вида "=IMPORTXML(...)" пишем как текст, иначе Sheets/Excel
+// исполнит их как формулу (formula injection).
+function _cell_(value) {
+  if (typeof value !== "string") return value;
+  return /^[=+\-@\t\r]/.test(value) ? "'" + value : value;
+}
+
 function _safeJson_(value) {
   try {
     return JSON.stringify(value).slice(0, 5000);
@@ -213,7 +221,7 @@ function doPost(e) {
   try {
     var data = _parsePayload_(e) || {};
 
-    if (SHARED_TOKEN && _sanitize_(data.proxyToken, 200) !== SHARED_TOKEN) {
+    if (!SHARED_TOKEN || _sanitize_(data.proxyToken, 200) !== SHARED_TOKEN) {
       return _jsonOutput_({ ok: false, error: "forbidden" });
     }
 
@@ -287,7 +295,7 @@ function doPost(e) {
       _sanitize_(data.ip, 64),
       _safeJson_(payload)
     ];
-    sheet.appendRow(row);
+    sheet.appendRow(row.map(_cell_));
 
     // Дополнительная запись в нормализованную схему (Users/Days/...). Это
     // расширение поверх легаси-лога: если оно упадёт — легаси-строка уже
@@ -308,11 +316,8 @@ function doPost(e) {
 
     return _jsonOutput_({ ok: true });
   } catch (err) {
-    return _jsonOutput_({
-      ok: false,
-      error: "internal_error",
-      message: String(err && err.message ? err.message : err)
-    });
+    Logger.log("doPost failed: " + String(err && err.message ? err.message : err));
+    return _jsonOutput_({ ok: false, error: "internal_error" });
   }
 }
 
@@ -939,7 +944,7 @@ function _upsertRow_(sheet, columns, keyColumn, keyValue, mergeFn) {
   var rowIndex = _findRowIndexByKey_(sheet, columns, keyColumn, keyValue);
   var existing = rowIndex === -1 ? null : _readRowObject_(sheet, columns, rowIndex);
   var merged = mergeFn(existing);
-  var rowArray = objectToRowArray(columns, merged);
+  var rowArray = objectToRowArray(columns, merged).map(_cell_);
   if (rowIndex === -1) {
     sheet.appendRow(rowArray);
   } else {
