@@ -62,12 +62,26 @@ function sanitizeEvent(input) {
   };
 }
 
+class UpstreamError extends Error {
+  constructor(message, cause) {
+    super(message);
+    this.name = "UpstreamError";
+    this.isUpstream = true;
+    if (cause) this.cause = cause;
+  }
+}
+
 async function callAppsScript(url, body) {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+  } catch (error) {
+    throw new UpstreamError("Failed to reach Apps Script", error);
+  }
 
   const text = await response.text();
   let parsed;
@@ -119,6 +133,9 @@ app.post("/api/register", async (req, res) => {
     });
   } catch (error) {
     console.error("POST /api/register failed", error);
+    if (error && error.isUpstream) {
+      return res.status(502).json({ ok: false, error: "Apps Script upstream unavailable" });
+    }
     return res.status(500).json({ ok: false, error: "Internal server error" });
   }
 });
@@ -143,13 +160,20 @@ app.get("/api/participant/lookup", async (req, res) => {
         ? "&proxyToken=" + encodeURIComponent(REGISTRATION_APPS_SCRIPT_TOKEN)
         : "");
 
-    const response = await fetch(url, { method: "GET", redirect: "follow" });
+    let response;
+    try {
+      response = await fetch(url, { method: "GET", redirect: "follow" });
+    } catch (error) {
+      throw new UpstreamError("Failed to reach Apps Script", error);
+    }
     const text = await response.text();
 
     let parsed = {};
     try {
       parsed = JSON.parse(text);
-    } catch (_e) {}
+    } catch (parseError) {
+      console.warn("GET /api/participant/lookup: non-JSON upstream response", parseError);
+    }
 
     if (!response.ok) {
       return res.status(502).json({ ok: false, error: "Apps Script upstream error", status: response.status });
@@ -163,6 +187,9 @@ app.get("/api/participant/lookup", async (req, res) => {
     });
   } catch (error) {
     console.error("GET /api/participant/lookup failed", error);
+    if (error && error.isUpstream) {
+      return res.status(502).json({ ok: false, error: "Apps Script upstream unavailable" });
+    }
     return res.status(500).json({ ok: false, error: "Internal server error" });
   }
 });
@@ -207,6 +234,9 @@ app.post("/api/events", async (req, res) => {
     return res.status(200).json({ ok: true, upstream: upstream.parsed });
   } catch (error) {
     console.error("POST /api/events failed", error);
+    if (error && error.isUpstream) {
+      return res.status(502).json({ ok: false, error: "Apps Script upstream unavailable" });
+    }
     return res.status(500).json({ ok: false, error: "Internal server error" });
   }
 });
@@ -223,6 +253,35 @@ app.get("/participate", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "participate.html"));
 });
 
-app.listen(PORT, () => {
+app.use("/api", (req, res) => {
+  res.status(404).json({ ok: false, error: "Not found" });
+});
+
+// Centralized error handler so failures are logged and returned as JSON
+// instead of being swallowed or leaking a default HTML stack trace.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  if (err && (err.type === "entity.parse.failed" || (err instanceof SyntaxError && err.status === 400))) {
+    return res.status(400).json({ ok: false, error: "Invalid JSON body" });
+  }
+  console.error("Unhandled request error", req.method, req.originalUrl, err);
+  if (res.headersSent) return next(err);
+  return res.status(500).json({ ok: false, error: "Internal server error" });
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught exception", error);
+});
+
+const server = app.listen(PORT, () => {
   console.log("Server started on port", PORT);
+});
+
+server.on("error", (error) => {
+  console.error("Server failed to start", error);
+  process.exit(1);
 });
