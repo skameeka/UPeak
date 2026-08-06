@@ -653,6 +653,11 @@
     var checkoutPayload = buildEveningSyncPayload();
     var canSync = requireVerifiedParticipantId(false);
 
+    if (state.lastCompletedDate !== today) {
+      state.completedDays = (Number(state.completedDays) || 0) + 1;
+      state.lastCompletedDate = today;
+    }
+
     // После закрытия дня оставляем только задачи на завтра (scheduled),
     // остальное локальное состояние дня сбрасываем.
     resetAfterDayClose();
@@ -664,6 +669,7 @@
     updateDayStatus();
     refreshInterventionBlocks();
     renderEveningReview();
+    updateFeedbackVisibility();
 
     if (canSync) {
       sync("evening_checkout", checkoutPayload);
@@ -734,6 +740,12 @@
     status.textContent = state.finalFeedbackAt ? t("planner.feedback.thanks") : "";
   }
 
+  function updateFeedbackVisibility() {
+    var card = byId("feedbackCard");
+    if (!card) return;
+    card.classList.toggle("hidden", (Number(state.completedDays) || 0) < 3);
+  }
+
   var feedbackForm = byId("feedbackForm");
   if (feedbackForm) {
     feedbackForm.addEventListener("submit", function (event) {
@@ -766,6 +778,7 @@
   }
 
   updateFeedbackStatus();
+  updateFeedbackVisibility();
 
   if (window.UpeakI18n && typeof window.UpeakI18n.onChange === "function") {
     window.UpeakI18n.onChange(updateFeedbackStatus);
@@ -2722,6 +2735,8 @@
       tasks: [],
       scheduled: [],
       dayClosedAt: "",
+      completedDays: 0,
+      lastCompletedDate: "",
       manualOrder: false,
       lastRoutineResetDate: "",
       morningEmbedDecisions: {},
