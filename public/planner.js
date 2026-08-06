@@ -439,7 +439,9 @@
           morningMatrixVersion = String(data.meta.version);
         }
       })
-      .catch(function () {})
+      .catch(function (error) {
+        console.error("Failed to load morning recommendation matrices", error);
+      })
       .then(function () {
         morningReady = true;
         finish();
@@ -469,7 +471,9 @@
           eveningMatrixVersion = String(data.meta.version);
         }
       })
-      .catch(function () {})
+      .catch(function (error) {
+        console.error("Failed to load evening recommendation matrices", error);
+      })
       .then(function () {
         eveningReady = true;
         finish();
@@ -519,7 +523,7 @@
     renderMorningRecommendations();
 
     if (!requireVerifiedParticipantId()) return;
-    sync("morning_checkin", Object.assign({}, state.morning, {
+    fireSync("morning_checkin", Object.assign({}, state.morning, {
       dayState: state.dayState
     }));
   });
@@ -554,7 +558,7 @@
       });
 
       if (requireVerifiedParticipantId()) {
-        sync("task_edited", Object.assign({ id: editingTaskId }, formTask));
+        fireSync("task_edited", Object.assign({ id: editingTaskId }, formTask));
       }
 
       resetTaskFormMode(event.target);
@@ -571,7 +575,7 @@
       event.target.reset();
 
       if (requireVerifiedParticipantId()) {
-        sync("task_created", task);
+        fireSync("task_created", task);
       }
     }
 
@@ -602,7 +606,7 @@
 
     if (!requireVerifiedParticipantId()) return;
 
-    sync("plan_generated", {
+    fireSync("plan_generated", {
       planRunId: planRunId,
       readiness: state.readiness,
       movedToScheduled: moved,
@@ -612,7 +616,7 @@
     });
 
     if (moved > 0) {
-      sync("scheduled_added", {
+      fireSync("scheduled_added", {
         count: moved,
         scheduledFor: tomorrowISO()
       });
@@ -662,7 +666,7 @@
     renderEveningReview();
 
     if (canSync) {
-      sync("evening_checkout", checkoutPayload);
+      fireSync("evening_checkout", checkoutPayload);
     }
   });
 
@@ -832,7 +836,7 @@
     state.lastRoutineResetDate = today;
 
     if (routineCount > 0 && requireVerifiedParticipantId(false)) {
-      sync("routine_activated", { count: routineCount });
+      fireSync("routine_activated", { count: routineCount });
     }
   }
 
@@ -871,7 +875,7 @@
     saveState();
 
     if (requireVerifiedParticipantId(false)) {
-      sync("scheduled_restored", { count: restored.length, date: today });
+      fireSync("scheduled_restored", { count: restored.length, date: today });
     }
   }
 
@@ -1186,7 +1190,7 @@
 
   function syncTaskEdited(task) {
     if (!task || !requireVerifiedParticipantId(false)) return;
-    sync("task_edited", {
+    fireSync("task_edited", {
       id: task.id,
       title: task.title,
       difficulty: task.difficulty,
@@ -1322,7 +1326,7 @@
     updateFact();
 
     if (requireVerifiedParticipantId(false)) {
-      sync("task_deleted", task || { id: id });
+      fireSync("task_deleted", task || { id: id });
     }
   }
 
@@ -1349,7 +1353,7 @@
     updateFact();
 
     if (requireVerifiedParticipantId(false)) {
-      sync("scheduled_added", {
+      fireSync("scheduled_added", {
         id: task.id,
         title: task.title,
         difficulty: task.difficulty,
@@ -1385,7 +1389,7 @@
     updateFact();
 
     if (requireVerifiedParticipantId(false)) {
-      sync("scheduled_restored", {
+      fireSync("scheduled_restored", {
         id: item.id,
         title: item.title,
         scheduledFor: item.scheduledFor
@@ -1400,7 +1404,7 @@
     renderScheduled();
 
     if (requireVerifiedParticipantId(false)) {
-      sync("scheduled_deleted", item || { id: id });
+      fireSync("scheduled_deleted", item || { id: id });
     }
   }
 
@@ -1419,7 +1423,7 @@
     updateFact();
 
     if (payload && requireVerifiedParticipantId(false)) {
-      sync("task_toggled", payload);
+      fireSync("task_toggled", payload);
     }
   }
 
@@ -1513,7 +1517,7 @@
     renderTasks();
 
     if (requireVerifiedParticipantId(false)) {
-      sync("task_reordered", {
+      fireSync("task_reordered", {
         id: draggedId,
         order: insertIndex
       });
@@ -1818,7 +1822,7 @@
     updateFact();
 
     if (requireVerifiedParticipantId(false)) {
-      sync("evening_embed_added", {
+      fireSync("evening_embed_added", {
         embedId: embedId,
         id: newTask.id,
         title: newTask.title,
@@ -1861,7 +1865,7 @@
     if (scope === "evening") renderEveningReview();
     else renderMorningRecommendations();
     if (requireVerifiedParticipantId(false)) {
-      sync("card_feedback", Object.assign({ scope: scope }, state[key]));
+      fireSync("card_feedback", Object.assign({ scope: scope }, state[key]));
     }
   }
 
@@ -1877,7 +1881,7 @@
     var cardId = rec.card_id || rec.decision_key || rec.mode || "";
     if (!cardId || !requireVerifiedParticipantId(false)) return;
 
-    sync(scope === "evening" ? "evening_recommendation_shown" : "morning_recommendation_shown", {
+    fireSync(scope === "evening" ? "evening_recommendation_shown" : "morning_recommendation_shown", {
       card_id: cardId,
       decision_key: rec.decision_key || cardId,
       text: rec.text || rec.narrative || rec.summary || "",
@@ -2004,7 +2008,7 @@
     }
 
     if (requireVerifiedParticipantId(false)) {
-      sync("morning_embed_added", {
+      fireSync("morning_embed_added", {
         embedId: embedId,
         id: newTask.id,
         title: newTask.title,
@@ -2405,6 +2409,7 @@
       headers: { "Accept": "application/json" }
     })
       .then(function (response) {
+        if (!response.ok) throw new Error("lookup_failed_" + response.status);
         return response.json();
       })
       .then(function (result) {
@@ -2421,7 +2426,8 @@
           setParticipantIdStatus("err", t("planner.id.notFound"));
         }
       })
-      .catch(function () {
+      .catch(function (error) {
+        console.error("Participant ID lookup failed", error);
         participantIdLocked = false;
         applyParticipantIdLockState();
         setParticipantIdStatus("err", t("planner.id.error"));
@@ -2436,6 +2442,16 @@
     if (el.participantIdInput) el.participantIdInput.focus();
     updateSyncStatus("error");
     return false;
+  }
+
+  // Fire-and-forget wrapper for analytics events: keeps the caller decoupled
+  // from the network result while still surfacing failures to the console
+  // instead of leaving an unhandled promise rejection.
+  function fireSync(eventType, payload) {
+    return sync(eventType, payload).catch(function (error) {
+      if (error && error.skipped) return;
+      console.error("planner sync failed for event", eventType, error);
+    });
   }
 
   function sync(eventType, payload) {

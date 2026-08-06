@@ -343,7 +343,11 @@
       .then(function (response) {
         return response.text().then(function (text) {
           var parsed = null;
-          try { parsed = JSON.parse(text); } catch (_e) {}
+          try {
+            parsed = JSON.parse(text);
+          } catch (parseError) {
+            console.warn("Registration response was not valid JSON", parseError);
+          }
           return { ok: response.ok, parsed: parsed, status: response.status };
         });
       })
@@ -394,7 +398,8 @@
           }
         }
       })
-      .catch(function () {
+      .catch(function (error) {
+        console.error("Registration request failed", error);
         showBanner("error", "participate.status.network", "Ошибка сети. Проверьте соединение и повторите попытку.");
       })
       .then(function () {
