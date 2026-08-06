@@ -1,7 +1,8 @@
 
 var SPREADSHEET_ID = "";
 var SHEET_NAME = "Participants";
-// Опционально: тот же токен, что в .env → REGISTRATION_APPS_SCRIPT_TOKEN
+// Обязательный секрет: тот же токен, что в .env → REGISTRATION_APPS_SCRIPT_TOKEN.
+// Если оставить пустым, регистрация и lookup отклоняются (fail-closed).
 var SHARED_TOKEN = "";
 
 var Q1_TEXT_RU = "Следите ли вы за своим состоянием или здоровьем?";
@@ -89,6 +90,13 @@ function _sanitize_(value, maxLen) {
   var s = String(value).trim();
   if (maxLen && s.length > maxLen) s = s.substring(0, maxLen);
   return s;
+}
+
+// Значения вида "=IMPORTXML(...)" пишем как текст, иначе Sheets/Excel
+// исполнит их как формулу (formula injection).
+function _cell_(value) {
+  if (typeof value !== "string") return value;
+  return /^[=+\-@\t\r]/.test(value) ? "'" + value : value;
 }
 
 function _normalizeTelegram_(value) {
@@ -200,7 +208,7 @@ function _findParticipantRow_(sheet, participantId) {
 }
 
 function _checkToken_(token) {
-  if (!SHARED_TOKEN) return true;
+  if (!SHARED_TOKEN) return false;
   return _sanitize_(token, 200) === SHARED_TOKEN;
 }
 
@@ -243,11 +251,8 @@ function doGet(e) {
       columns: HEADERS.length
     });
   } catch (err) {
-    return _jsonOutput_({
-      ok: false,
-      error: "internal_error",
-      message: String(err && err.message ? err.message : err)
-    });
+    Logger.log("doGet failed: " + String(err && err.message ? err.message : err));
+    return _jsonOutput_({ ok: false, error: "internal_error" });
   }
 }
 
@@ -340,15 +345,12 @@ function doPost(e) {
       q3.label,
       "new"
     ];
-    sheet.appendRow(row);
+    sheet.appendRow(row.map(_cell_));
 
     return _jsonOutput_({ ok: true, participantId: participantId });
   } catch (err) {
-    return _jsonOutput_({
-      ok: false,
-      error: "internal_error",
-      message: String(err && err.message ? err.message : err)
-    });
+    Logger.log("doPost failed: " + String(err && err.message ? err.message : err));
+    return _jsonOutput_({ ok: false, error: "internal_error" });
   }
 }
 

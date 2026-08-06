@@ -35,6 +35,71 @@ const ALLOWED_EVENT_TYPES = new Set([
   "evening_recommendation_shown"
 ]);
 
+const PARTICIPANT_ID_RE = /^UP-\d{1,12}$/;
+
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMITS = {
+  "/api/register": 10,
+  "/api/participant/lookup": 30,
+  "/api/events": 120
+};
+
+const rateBuckets = new Map();
+
+function rateLimit(routeKey) {
+  const max = RATE_LIMITS[routeKey];
+  return (req, res, next) => {
+    const now = Date.now();
+    const key = routeKey + "|" + (req.ip || "unknown");
+    const bucket = rateBuckets.get(key);
+
+    if (!bucket || now - bucket.start >= RATE_LIMIT_WINDOW_MS) {
+      rateBuckets.set(key, { start: now, count: 1 });
+      return next();
+    }
+
+    bucket.count += 1;
+    if (bucket.count > max) {
+      res.set("Retry-After", String(Math.ceil((bucket.start + RATE_LIMIT_WINDOW_MS - now) / 1000)));
+      return res.status(429).json({ ok: false, error: "Too many requests" });
+    }
+    return next();
+  };
+}
+
+setInterval(() => {
+  const cutoff = Date.now() - RATE_LIMIT_WINDOW_MS;
+  for (const [key, bucket] of rateBuckets) {
+    if (bucket.start < cutoff) rateBuckets.delete(key);
+  }
+}, RATE_LIMIT_WINDOW_MS).unref();
+
+app.disable("x-powered-by");
+app.set("trust proxy", process.env.TRUST_PROXY === "true");
+
+app.use((_req, res, next) => {
+  res.set("X-Content-Type-Options", "nosniff");
+  res.set("X-Frame-Options", "DENY");
+  res.set("Referrer-Policy", "no-referrer");
+  res.set(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      // Лендинг и /participate.html подключают Tailwind Play CDN (нужен eval) и инлайн-скрипты.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data:",
+      "connect-src 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+      "base-uri 'none'",
+      "form-action 'self'"
+    ].join("; ")
+  );
+  next();
+});
+
 app.use(express.json({ limit: "256kb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -89,7 +154,7 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-app.post("/api/register", async (req, res) => {
+app.post("/api/register", rateLimit("/api/register"), async (req, res) => {
   try {
     if (!REGISTRATION_APPS_SCRIPT_URL) {
       return res.status(503).json({ ok: false, error: "REGISTRATION_APPS_SCRIPT_URL is not configured" });
@@ -104,18 +169,19 @@ app.post("/api/register", async (req, res) => {
 
     const upstream = await callAppsScript(REGISTRATION_APPS_SCRIPT_URL, body);
     if (!upstream.ok) {
-      return res.status(502).json({
-        ok: false,
-        error: "Apps Script upstream error",
-        status: upstream.status,
-        body: upstream.text.slice(0, 500)
-      });
+      console.error("POST /api/register upstream error", upstream.status, upstream.text.slice(0, 500));
+      return res.status(502).json({ ok: false, error: "Apps Script upstream error" });
+    }
+
+    const parsed = upstream.parsed || {};
+    if (parsed.ok === false) {
+      console.error("POST /api/register rejected by Apps Script", parsed.error, parsed.message || "");
     }
 
     return res.status(200).json({
       ok: true,
-      upstream: upstream.parsed,
-      participantId: upstream.parsed && upstream.parsed.participantId ? upstream.parsed.participantId : ""
+      upstream: { ok: parsed.ok !== false, error: sanitizeString(parsed.error, 100) },
+      participantId: sanitizeString(parsed.participantId, 40)
     });
   } catch (error) {
     console.error("POST /api/register failed", error);
@@ -123,11 +189,11 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-app.get("/api/participant/lookup", async (req, res) => {
+app.get("/api/participant/lookup", rateLimit("/api/participant/lookup"), async (req, res) => {
   try {
-    const id = sanitizeString(req.query.id, 40);
-    if (!id) {
-      return res.status(400).json({ ok: false, error: "id is required" });
+    const id = sanitizeString(req.query.id, 40).toUpperCase();
+    if (!PARTICIPANT_ID_RE.test(id)) {
+      return res.status(400).json({ ok: false, error: "Invalid id" });
     }
 
     if (!REGISTRATION_APPS_SCRIPT_URL) {
@@ -152,14 +218,14 @@ app.get("/api/participant/lookup", async (req, res) => {
     } catch (_e) {}
 
     if (!response.ok) {
-      return res.status(502).json({ ok: false, error: "Apps Script upstream error", status: response.status });
+      console.error("GET /api/participant/lookup upstream error", response.status, text.slice(0, 500));
+      return res.status(502).json({ ok: false, error: "Apps Script upstream error" });
     }
 
     return res.status(200).json({
       ok: true,
       exists: !!parsed.exists,
-      id,
-      participant: parsed.participant || null
+      id
     });
   } catch (error) {
     console.error("GET /api/participant/lookup failed", error);
@@ -167,7 +233,7 @@ app.get("/api/participant/lookup", async (req, res) => {
   }
 });
 
-app.post("/api/events", async (req, res) => {
+app.post("/api/events", rateLimit("/api/events"), async (req, res) => {
   try {
     if (!PLANNER_APPS_SCRIPT_URL) {
       return res.status(503).json({ ok: false, error: "PLANNER_APPS_SCRIPT_URL is not configured" });
@@ -183,8 +249,9 @@ app.post("/api/events", async (req, res) => {
       return res.status(400).json({ ok: false, error: "timestamp and date are required" });
     }
 
-    if (!event.participantId) {
-      return res.status(400).json({ ok: false, error: "participantId is required" });
+    event.participantId = event.participantId.toUpperCase();
+    if (!PARTICIPANT_ID_RE.test(event.participantId)) {
+      return res.status(400).json({ ok: false, error: "Invalid participantId" });
     }
 
     const body = Object.assign({}, event, {
@@ -196,15 +263,19 @@ app.post("/api/events", async (req, res) => {
 
     const upstream = await callAppsScript(PLANNER_APPS_SCRIPT_URL, body);
     if (!upstream.ok) {
-      return res.status(502).json({
-        ok: false,
-        error: "Apps Script upstream error",
-        status: upstream.status,
-        body: upstream.text.slice(0, 500)
-      });
+      console.error("POST /api/events upstream error", upstream.status, upstream.text.slice(0, 500));
+      return res.status(502).json({ ok: false, error: "Apps Script upstream error" });
     }
 
-    return res.status(200).json({ ok: true, upstream: upstream.parsed });
+    const parsed = upstream.parsed || {};
+    if (parsed.ok === false) {
+      console.error("POST /api/events rejected by Apps Script", parsed.error, parsed.message || "");
+    }
+
+    return res.status(200).json({
+      ok: true,
+      upstream: { ok: parsed.ok !== false, error: sanitizeString(parsed.error, 100) }
+    });
   } catch (error) {
     console.error("POST /api/events failed", error);
     return res.status(500).json({ ok: false, error: "Internal server error" });
