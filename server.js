@@ -32,7 +32,8 @@ const ALLOWED_EVENT_TYPES = new Set([
   "morning_embed_added",
   "evening_embed_added",
   "morning_recommendation_shown",
-  "evening_recommendation_shown"
+  "evening_recommendation_shown",
+  "final_feedback"
 ]);
 
 app.use(express.json({ limit: "256kb" }));
