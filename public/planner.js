@@ -654,7 +654,16 @@
     var canSync = requireVerifiedParticipantId(false);
 
     if (state.lastCompletedDate !== today) {
-      state.completedDays = (Number(state.completedDays) || 0) + 1;
+      if (!Array.isArray(state.completedDayDates)) {
+        state.completedDayDates = [];
+        for (var legacyDay = 0; legacyDay < (Number(state.completedDays) || 0); legacyDay++) {
+          state.completedDayDates.push("legacy-" + legacyDay);
+        }
+      }
+      if (state.completedDayDates.indexOf(today) === -1) {
+        state.completedDayDates.push(today);
+        state.completedDays = state.completedDayDates.length;
+      }
       state.lastCompletedDate = today;
     }
 
@@ -2740,6 +2749,7 @@
       scheduled: [],
       dayClosedAt: "",
       completedDays: 0,
+      completedDayDates: [],
       lastCompletedDate: "",
       manualOrder: false,
       lastRoutineResetDate: "",
