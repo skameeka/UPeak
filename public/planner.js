@@ -53,6 +53,8 @@
       "planner.sync.syncing": "Синхронизация…",
       "planner.sync.success": "Данные сохранены",
       "planner.sync.error": "Ошибка синхронизации",
+      "planner.feedback.thanks": "Спасибо! Отзыв сохранён.",
+      "planner.feedback.scaleInvalid": "Укажите значение от 1 до 5 в оценке полезности.",
       "planner.evening.dayClosed": "День закрыт",
       "planner.evening.dayOpen": "День не закрыт",
       "planner.evening.reviewTitle": "Итог дня",
@@ -104,6 +106,8 @@
       "planner.sync.syncing": "Syncing…",
       "planner.sync.success": "Saved",
       "planner.sync.error": "Sync error",
+      "planner.feedback.thanks": "Thank you! Feedback saved.",
+      "planner.feedback.scaleInvalid": "Enter a value from 1 to 5 for the usefulness rating.",
       "planner.evening.dayClosed": "Day closed",
       "planner.evening.dayOpen": "Day not closed",
       "planner.evening.reviewTitle": "Day summary",
@@ -649,6 +653,20 @@
     var checkoutPayload = buildEveningSyncPayload();
     var canSync = requireVerifiedParticipantId(false);
 
+    if (state.lastCompletedDate !== today) {
+      if (!Array.isArray(state.completedDayDates)) {
+        state.completedDayDates = [];
+        for (var legacyDay = 0; legacyDay < (Number(state.completedDays) || 0); legacyDay++) {
+          state.completedDayDates.push("legacy-" + legacyDay);
+        }
+      }
+      if (state.completedDayDates.indexOf(today) === -1) {
+        state.completedDayDates.push(today);
+        state.completedDays = state.completedDayDates.length;
+      }
+      state.lastCompletedDate = today;
+    }
+
     // После закрытия дня оставляем только задачи на завтра (scheduled),
     // остальное локальное состояние дня сбрасываем.
     resetAfterDayClose();
@@ -660,6 +678,7 @@
     updateDayStatus();
     refreshInterventionBlocks();
     renderEveningReview();
+    updateFeedbackVisibility();
 
     if (canSync) {
       sync("evening_checkout", checkoutPayload);
@@ -682,6 +701,100 @@
       var node = byId(id);
       if (node) node.value = "";
     });
+  }
+
+  // Онбординг: модальная инструкция перед первым использованием;
+  // повторно открывается кнопкой «Инструкция» в шапке.
+  function setOnboardingVisible(visible) {
+    var overlay = byId("onboardingOverlay");
+    if (!overlay) return;
+    overlay.classList.toggle("hidden", !visible);
+  }
+
+  function setupOnboarding() {
+    var overlay = byId("onboardingOverlay");
+    if (!overlay) return;
+
+    var openBtn = byId("onboardingOpenBtn");
+    if (openBtn) {
+      openBtn.addEventListener("click", function () { setOnboardingVisible(true); });
+    }
+
+    var closeBtn = byId("onboardingCloseBtn");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", function () {
+        if (!state.onboardingSeenAt) {
+          state.onboardingSeenAt = new Date().toISOString();
+          saveState();
+        }
+        setOnboardingVisible(false);
+      });
+    }
+
+    if (!state.onboardingSeenAt) setOnboardingVisible(true);
+  }
+
+  setupOnboarding();
+
+  // Финальный feedback: отправляется событием final_feedback и сохраняется
+  // на отдельный лист Feedback (одна строка на user_id).
+  function getRadioValue(name) {
+    var node = document.querySelector('input[name="' + name + '"]:checked');
+    return node ? node.value : "";
+  }
+
+  function updateFeedbackStatus() {
+    var status = byId("feedbackStatus");
+    if (!status) return;
+    status.textContent = state.finalFeedbackAt ? t("planner.feedback.thanks") : "";
+  }
+
+  function updateFeedbackVisibility() {
+    var card = byId("feedbackCard");
+    if (!card) return;
+    card.classList.toggle("hidden", (Number(state.completedDays) || 0) < 3);
+  }
+
+  var feedbackForm = byId("feedbackForm");
+  if (feedbackForm) {
+    feedbackForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      if ((Number(state.completedDays) || 0) < 3) {
+        return;
+      }
+
+      var usefulness = getScale1to5("feedbackUsefulness");
+      if (!Number.isFinite(usefulness)) {
+        alert(t("planner.feedback.scaleInvalid"));
+        return;
+      }
+
+      if (!requireVerifiedParticipantId()) return;
+
+      sync("final_feedback", {
+        productUsefulness: usefulness,
+        stateUnderstandingHelp: getRadioValue("feedbackStateHelp"),
+        planningHelp: getRadioValue("feedbackPlanningHelp"),
+        continueUsing: getRadioValue("feedbackContinue"),
+        mostUseful: (byId("feedbackMostUseful") || {}).value ? byId("feedbackMostUseful").value.trim() : "",
+        improvements: (byId("feedbackImprovements") || {}).value ? byId("feedbackImprovements").value.trim() : "",
+        missingIfRemoved: (byId("feedbackMissing") || {}).value ? byId("feedbackMissing").value.trim() : ""
+      })
+        .then(function () {
+          state.finalFeedbackAt = new Date().toISOString();
+          saveState();
+          updateFeedbackStatus();
+        })
+        .catch(function () {});
+    });
+  }
+
+  updateFeedbackStatus();
+  updateFeedbackVisibility();
+
+  if (window.UpeakI18n && typeof window.UpeakI18n.onChange === "function") {
+    window.UpeakI18n.onChange(updateFeedbackStatus);
   }
 
   // После «Закрыть день»: задачи дня сбрасываем, оставляем только «на завтра».
@@ -2635,6 +2748,9 @@
       tasks: [],
       scheduled: [],
       dayClosedAt: "",
+      completedDays: 0,
+      completedDayDates: [],
+      lastCompletedDate: "",
       manualOrder: false,
       lastRoutineResetDate: "",
       morningEmbedDecisions: {},
@@ -2644,7 +2760,9 @@
       morningCardFeedback: null,
       eveningCardFeedback: null,
       morningRecommendationShownDate: "",
-      eveningRecommendationShownDate: ""
+      eveningRecommendationShownDate: "",
+      onboardingSeenAt: "",
+      finalFeedbackAt: ""
     };
 
     try {

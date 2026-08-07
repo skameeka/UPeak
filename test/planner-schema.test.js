@@ -56,6 +56,39 @@ test("buildPlanRunRows: старый payload определяет перенес
   assert.equal(snapshot.items[1].decision, "postponed");
 });
 
+test("buildFeedbackRow: собирает строку финального отзыва", function () {
+  var row = schema.buildFeedbackRow("UP-000007", {
+    productUsefulness: 5,
+    stateUnderstandingHelp: "yes",
+    planningHelp: "partially",
+    continueUsing: "yes",
+    mostUseful: "Распределение по состоянию",
+    improvements: "Хочу мобильную версию",
+    missingIfRemoved: "Вечерний итог"
+  }, NOW);
+
+  assert.deepEqual(row, {
+    user_id: "UP-000007",
+    timestamp: NOW,
+    product_usefulness: 5,
+    state_understanding_help: "yes",
+    planning_help: "partially",
+    continue_using: "yes",
+    most_useful: "Распределение по состоянию",
+    improvements: "Хочу мобильную версию",
+    missing_if_removed: "Вечерний итог"
+  });
+});
+
+test("buildFeedbackRow: пустой payload и обрезка длинного текста", function () {
+  var empty = schema.buildFeedbackRow("UP-1", null, NOW);
+  assert.equal(empty.product_usefulness, "");
+  assert.equal(empty.most_useful, "");
+
+  var long = schema.buildFeedbackRow("UP-1", { improvements: "x".repeat(2000) }, NOW);
+  assert.equal(long.improvements.length, 1000);
+});
+
 test("toBoolCell: true/false/строки/undefined", function () {
   assert.equal(schema.toBoolCell(true), "TRUE");
   assert.equal(schema.toBoolCell(false), "FALSE");

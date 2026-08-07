@@ -26,6 +26,7 @@ var EXPORT_NAMES = [
   "buildPlanRunId",
   "isRecommendationPlanTask",
   "buildPlanRunRows",
+  "buildFeedbackRow",
   "toBoolCell",
   "compactPatch",
   "statusForEvent",
@@ -106,6 +107,23 @@ test("docs/CodeAPP.gs: buildPlanRunRows идентичен", function () {
     gs.buildPlanRunRows(dayId, "UP-1", payload, NOW),
     schema.buildPlanRunRows(dayId, "UP-1", payload, NOW)
   );
+});
+
+test("docs/CodeAPP.gs: buildFeedbackRow идентичен", function () {
+  var payload = {
+    productUsefulness: 4,
+    stateUnderstandingHelp: "yes",
+    planningHelp: "partially",
+    continueUsing: "no",
+    mostUseful: "Рекомендации по нагрузке",
+    improvements: "Больше гибкости",
+    missingIfRemoved: "Утренний чек-ин"
+  };
+  assert.deepEqual(
+    gs.buildFeedbackRow("UP-1", payload, NOW),
+    schema.buildFeedbackRow("UP-1", payload, NOW)
+  );
+  assert.deepEqual(gs.buildFeedbackRow("UP-1", null, NOW), schema.buildFeedbackRow("UP-1", null, NOW));
 });
 
 test("docs/CodeAPP.gs: toBoolCell / compactPatch / statusForEvent идентичны", function () {

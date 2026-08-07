@@ -7,6 +7,8 @@ var SHARED_TOKEN = "";
 var Q1_TEXT_RU = "Следите ли вы за своим состоянием или здоровьем?";
 var Q2_TEXT_RU = "Используете ли вы что-то для отслеживания: сна, тренировок, нагрузки, продуктивности, самочувствия?";
 var Q3_TEXT_RU = "Насколько вам знакомы такие проблемы: перегруз, усталость к концу дня, сложности с планированием, переоценка своих сил?";
+var Q4_TEXT_RU = "Когда ты замечаешь, что нагрузка начинает влиять на твоё состояние?";
+var Q5_TEXT_RU = "Что ты обычно делаешь, когда замечаешь, что текущая нагрузка влияет на твоё состояние?";
 
 var HEADERS = [
   "Participant ID",
@@ -31,12 +33,35 @@ var HEADERS = [
   "Q3: " + Q3_TEXT_RU,
   "Q3 Answer",
   "Q3 Answer (label)",
+  "Q4: " + Q4_TEXT_RU,
+  "Q4 Answer",
+  "Q4 Answer (label)",
+  "Q5: " + Q5_TEXT_RU,
+  "Q5 Answer",
+  "Q5 Answer (label)",
   "Status"
 ];
 
 var Q1_VALID = { "yes_regularly": true, "sometimes": true, "no": true };
 var Q2_VALID = { "yes": true, "no": true };
 var Q3_VALID = { "often": true, "sometimes": true, "rarely": true, "almost_never": true };
+var Q4_VALID = {
+  "before_interference": true,
+  "slight_interference": true,
+  "strong_interference": true,
+  "after_consequences": true,
+  "do_not_notice": true,
+  "unsure": true
+};
+var Q5_VALID = {
+  "nothing": true,
+  "postpone_tasks": true,
+  "reduce_volume": true,
+  "take_break": true,
+  "finish_as_planned": true,
+  "other": true,
+  "no_such_situation": true
+};
 
 function _getSpreadsheet_() {
   if (SPREADSHEET_ID && SPREADSHEET_ID.length > 0) {
@@ -76,6 +101,13 @@ function _ensureHeaders_(sheet) {
     sheet.getRange(1, 1).setFontWeight("bold");
     _backfillMissingIds_(sheet);
   }
+
+  if (sheet.getMaxColumns() < HEADERS.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), HEADERS.length - sheet.getMaxColumns());
+  }
+  sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight("bold");
 }
 
 function _jsonOutput_(obj) {
@@ -238,7 +270,7 @@ function doGet(e) {
     return _jsonOutput_({
       ok: true,
       service: "upeak-participants",
-      version: 4,
+      version: 5,
       sheet: SHEET_NAME,
       columns: HEADERS.length
     });
@@ -288,6 +320,8 @@ function doPost(e) {
     var q1 = _readSurveyEntry_(survey, "q1");
     var q2 = _readSurveyEntry_(survey, "q2");
     var q3 = _readSurveyEntry_(survey, "q3");
+    var q4 = _readSurveyEntry_(survey, "q4");
+    var q5 = _readSurveyEntry_(survey, "q5");
 
     if (!q1.answer || !Q1_VALID[q1.answer]) {
       return _jsonOutput_({ ok: false, error: "survey_q1_required" });
@@ -297,6 +331,12 @@ function doPost(e) {
     }
     if (!q3.answer || !Q3_VALID[q3.answer]) {
       return _jsonOutput_({ ok: false, error: "survey_q3_required" });
+    }
+    if (!q4.answer || !Q4_VALID[q4.answer]) {
+      return _jsonOutput_({ ok: false, error: "survey_q4_required" });
+    }
+    if (!q5.answer || !Q5_VALID[q5.answer]) {
+      return _jsonOutput_({ ok: false, error: "survey_q5_required" });
     }
 
     var contactType = _sanitize_(data.contactType, 16);
@@ -338,6 +378,12 @@ function doPost(e) {
       q3.question || Q3_TEXT_RU,
       q3.answer,
       q3.label,
+      q4.question || Q4_TEXT_RU,
+      q4.answer,
+      q4.label,
+      q5.question || Q5_TEXT_RU,
+      q5.answer,
+      q5.label,
       "new"
     ];
     sheet.appendRow(row);

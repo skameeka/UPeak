@@ -21,7 +21,9 @@
   var SURVEY_QUESTIONS = [
     { key: "q1", name: "surveyQ1", groupId: "surveyQ1Group", errorId: "surveyQ1Error", textKey: "participate.survey.q1.text" },
     { key: "q2", name: "surveyQ2", groupId: "surveyQ2Group", errorId: "surveyQ2Error", textKey: "participate.survey.q2.text" },
-    { key: "q3", name: "surveyQ3", groupId: "surveyQ3Group", errorId: "surveyQ3Error", textKey: "participate.survey.q3.text" }
+    { key: "q3", name: "surveyQ3", groupId: "surveyQ3Group", errorId: "surveyQ3Error", textKey: "participate.survey.q3.text" },
+    { key: "q4", name: "surveyQ4", groupId: "surveyQ4Group", errorId: "surveyQ4Error", textKey: "participate.survey.q4.text" },
+    { key: "q5", name: "surveyQ5", groupId: "surveyQ5Group", errorId: "surveyQ5Error", textKey: "participate.survey.q5.text" }
   ];
 
   // Per-page-load session/correlation ID. We deliberately do not persist it across
