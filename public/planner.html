@@ -195,36 +195,36 @@
 
     <section class="card hidden" id="feedbackCard">
       <h2><span class="card-icon" aria-hidden="true">💬</span><span data-i18n="planner.feedback.title">5) Финальный отзыв</span></h2>
-      <p class="muted" data-i18n="planner.feedback.hint">Короткий опрос после завершения использования. Ответы помогут нам понять, что было полезно и что улучшить.</p>
+      <p class="muted" data-i18n="planner.feedback.hint">Опрос доступен после завершения третьего дня. Ответьте о своём опыте использования продукта.</p>
       <form id="feedbackForm" class="grid checkin">
         <label class="field">
-          <span class="field-question" data-i18n="planner.feedback.usefulness">Насколько полезным оказался продукт?</span>
-          <input type="text" inputmode="numeric" id="feedbackUsefulness" placeholder="1 — совсем не полезен, 5 — очень полезен" data-i18n-placeholder="planner.feedback.usefulnessPh" required autocomplete="off" />
+          <span class="field-question" data-i18n="planner.feedback.usefulness">Как вы оцениваете свой опыт использования продукта?</span>
+          <input type="text" inputmode="numeric" id="feedbackUsefulness" placeholder="1 — очень отрицательно, 5 — очень положительно" data-i18n-placeholder="planner.feedback.usefulnessPh" required autocomplete="off" />
         </label>
         <fieldset class="field feedback-choice">
-          <legend class="field-question" data-i18n="planner.feedback.stateHelp">Помог ли продукт лучше понимать своё состояние?</legend>
-          <label class="checkbox-label"><input type="radio" name="feedbackStateHelp" value="yes" required><span data-i18n="planner.feedback.yes">Да</span></label>
-          <label class="checkbox-label"><input type="radio" name="feedbackStateHelp" value="partially"><span data-i18n="planner.feedback.partially">Частично</span></label>
-          <label class="checkbox-label"><input type="radio" name="feedbackStateHelp" value="no"><span data-i18n="planner.feedback.no">Нет</span></label>
+          <legend class="field-question" data-i18n="planner.feedback.stateHelp">Как вы оцениваете изменения в понимании своего состояния?</legend>
+          <label class="checkbox-label"><input type="radio" name="feedbackStateHelp" value="yes" required><span data-i18n="planner.feedback.yes">Стало лучше</span></label>
+          <label class="checkbox-label"><input type="radio" name="feedbackStateHelp" value="partially"><span data-i18n="planner.feedback.partially">Изменилось частично</span></label>
+          <label class="checkbox-label"><input type="radio" name="feedbackStateHelp" value="no"><span data-i18n="planner.feedback.no">Не изменилось</span></label>
         </fieldset>
         <fieldset class="field feedback-choice">
-          <legend class="field-question" data-i18n="planner.feedback.planningHelp">Помог ли продукт лучше распределять нагрузку?</legend>
-          <label class="checkbox-label"><input type="radio" name="feedbackPlanningHelp" value="yes" required><span data-i18n="planner.feedback.yes">Да</span></label>
-          <label class="checkbox-label"><input type="radio" name="feedbackPlanningHelp" value="partially"><span data-i18n="planner.feedback.partially">Частично</span></label>
-          <label class="checkbox-label"><input type="radio" name="feedbackPlanningHelp" value="no"><span data-i18n="planner.feedback.no">Нет</span></label>
+          <legend class="field-question" data-i18n="planner.feedback.planningHelp">Как вы оцениваете изменения в распределении нагрузки?</legend>
+          <label class="checkbox-label"><input type="radio" name="feedbackPlanningHelp" value="yes" required><span data-i18n="planner.feedback.yes">Стало лучше</span></label>
+          <label class="checkbox-label"><input type="radio" name="feedbackPlanningHelp" value="partially"><span data-i18n="planner.feedback.partially">Изменилось частично</span></label>
+          <label class="checkbox-label"><input type="radio" name="feedbackPlanningHelp" value="no"><span data-i18n="planner.feedback.no">Не изменилось</span></label>
         </fieldset>
         <fieldset class="field feedback-choice">
-          <legend class="field-question" data-i18n="planner.feedback.continue">Хотел бы ты продолжить использовать продукт?</legend>
+          <legend class="field-question" data-i18n="planner.feedback.continue">Планируете ли вы продолжать пользоваться продуктом?</legend>
           <label class="checkbox-label"><input type="radio" name="feedbackContinue" value="yes" required><span data-i18n="planner.feedback.yes">Да</span></label>
           <label class="checkbox-label"><input type="radio" name="feedbackContinue" value="no"><span data-i18n="planner.feedback.no">Нет</span></label>
         </fieldset>
-        <label class="field full"><span class="field-question" data-i18n="planner.feedback.mostUseful">Что было самым полезным?</span>
+        <label class="field full"><span class="field-question" data-i18n="planner.feedback.mostUseful">Если что-то в продукте было полезно, что именно?</span>
           <input id="feedbackMostUseful" placeholder="Свободный ответ" data-i18n-placeholder="planner.feedback.textPh" />
         </label>
-        <label class="field full"><span class="field-question" data-i18n="planner.feedback.improvements">Что нужно улучшить?</span>
+        <label class="field full"><span class="field-question" data-i18n="planner.feedback.improvements">Какие изменения вы бы предложили?</span>
           <input id="feedbackImprovements" placeholder="Свободный ответ" data-i18n-placeholder="planner.feedback.textPh" />
         </label>
-        <label class="field full"><span class="field-question" data-i18n="planner.feedback.missing">Если бы продукт исчез завтра, чего бы тебе не хватало?</span>
+        <label class="field full"><span class="field-question" data-i18n="planner.feedback.missing">Есть ли что-то, чего вам не хватало бы без этого продукта? Если да, что именно?</span>
           <input id="feedbackMissing" placeholder="Свободный ответ" data-i18n-placeholder="planner.feedback.textPh" />
         </label>
         <div class="row full">

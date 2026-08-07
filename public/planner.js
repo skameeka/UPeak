@@ -751,6 +751,10 @@
     feedbackForm.addEventListener("submit", function (event) {
       event.preventDefault();
 
+      if ((Number(state.completedDays) || 0) < 3) {
+        return;
+      }
+
       var usefulness = getScale1to5("feedbackUsefulness");
       if (!Number.isFinite(usefulness)) {
         alert(t("planner.feedback.scaleInvalid"));
