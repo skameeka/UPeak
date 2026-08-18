@@ -14,6 +14,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const csv = require("../lib/csv");
 
 const OUT_DIR = path.join(__dirname, "..", "output");
 const OUT_CSV = path.join(OUT_DIR, "recommendations-catalog.csv");
@@ -113,21 +114,8 @@ function collectEmbedRows(matrix, scope, rows) {
   });
 }
 
-function escapeCsv(value) {
-  const s = String(value == null ? "" : value);
-  if (s.indexOf(",") !== -1 || s.indexOf('"') !== -1 || s.indexOf("\n") !== -1) {
-    return '"' + s.replace(/"/g, '""') + '"';
-  }
-  return s;
-}
-
 function toCsv(rows) {
-  const header = ["card_id", "scope", "kind", "title"];
-  const lines = [header.join(",")];
-  rows.forEach(function (row) {
-    lines.push(header.map(function (col) { return escapeCsv(row[col]); }).join(","));
-  });
-  return lines.join("\n");
+  return csv.toCsv(["card_id", "scope", "kind", "title"], rows);
 }
 
 // JS-литерал массива массивов [card_id, scope, kind, title] — вставляется в

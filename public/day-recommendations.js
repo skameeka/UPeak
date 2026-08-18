@@ -1,6 +1,9 @@
 (function (root) {
   "use strict";
 
+  var utils = root.UpeakRecommendationUtils ||
+    (typeof require === "function" ? require("./recommendation-utils.js") : null);
+
   var PLAN_LABEL = "Рекомендуем";
 
   var SECTION_LABELS = {
@@ -52,11 +55,7 @@
   var RECOMMENDATION_MATRIX = null;
   var DECISION_MATRIX = null;
 
-  var EVIDENCE_LEVEL_LABELS = {
-    High: "Высокая",
-    Medium: "Средняя",
-    Low: "Низкая"
-  };
+  var MAX_EMBED_OFFERS = 2;
 
   var STATE_OVERRIDES = {
     emergency_recovery: {
@@ -190,13 +189,6 @@
     return copy;
   }
 
-  function formatSourceLabel(src) {
-    if (!src) return null;
-    return src.title +
-      (src.authors ? " — " + src.authors : "") +
-      (src.year ? " (" + src.year + ")" : "");
-  }
-
   function pickGrowthSleepMetric(dayState) {
     if (!dayState || !dayState.metrics) return "sleep_hours";
     var hours = Number(dayState.metrics.sleep_hours);
@@ -313,22 +305,6 @@
     return decisionKey;
   }
 
-  function buildProofFromEvidence(entry) {
-    if (!entry || !entry.evidence) return null;
-    var ev = entry.evidence;
-    if (!ev.basis && !ev.level && !(Array.isArray(ev.sources) && ev.sources.length)) return null;
-    var sources = Array.isArray(ev.sources) ? ev.sources.slice() : [];
-    var primary = sources.length ? sources[0] : null;
-    return {
-      text: ev.basis || "",
-      evidence_level: EVIDENCE_LEVEL_LABELS[ev.level] || ev.level || null,
-      limitations: [RESULT_DISCLAIMER],
-      sources: sources,
-      source: formatSourceLabel(primary),
-      url: primary && primary.url ? primary.url : null
-    };
-  }
-
   function cardToneFromDecisionKey(key) {
     if (key === "high" || key === "growth") return "growth";
     if (key === "emergency_recovery") return "recovery";
@@ -341,8 +317,8 @@
 
     var avoid = uniqueList(entry.avoid || [], 2);
     var stateText = entry.state_text || entry.state || "";
-    var proof = buildProofFromEvidence(entry);
-    var hasProof = !!(proof && (proof.text || (proof.sources && proof.sources.length)));
+    var proof = utils.buildProofFromEvidence(entry);
+    var hasProof = utils.hasProof(proof);
 
     return {
       tone: cardToneFromDecisionKey(decisionKey),
@@ -452,9 +428,7 @@
       evidence_level: entry.evidence_level || null,
       limitations: Array.isArray(entry.limitations) ? entry.limitations.slice() : null,
       sources: Array.isArray(entry.sources) ? entry.sources.slice() : null,
-      source: src
-        ? src.title + (src.authors ? " — " + src.authors : "") + (src.year ? " (" + src.year + ")" : "")
-        : null,
+      source: utils.formatSourceLabel(src),
       url: src && src.url ? src.url : null
     };
   }
@@ -741,7 +715,7 @@
   }
 
   var RESULT_CONDITION = "Ориентир по эффекту (сегодня — если не указано «завтра»):";
-  var RESULT_DISCLAIMER = "Ориентировочная оценка, не гарантия — зависит от контекста и задач.";
+  var RESULT_DISCLAIMER = utils.RESULT_DISCLAIMER;
 
   function buildImpact(entry, map) {
     if (!entry) return "";
@@ -807,7 +781,7 @@
     var tone = cardTone(activeMap);
 
     var proof = buildWhy(contentEntry);
-    var hasProof = !!(proof && (proof.text || (proof.sources && proof.sources.length)));
+    var hasProof = utils.hasProof(proof);
 
     return {
       visible_blocks: visible,
@@ -866,61 +840,17 @@
     };
   }
 
-  function matchesEmbedWhen(when, ctx) {
-    if (!when || typeof when !== "object") return true;
-    if (Array.isArray(when.any)) {
-      return when.any.some(function (key) {
-        return !!ctx[key];
-      });
-    }
-    return Object.keys(when).every(function (key) {
-      return !when[key] || !!ctx[key];
-    });
-  }
-
-  function embedStatus(offerId, ctx) {
-    if (ctx.decisions[offerId] === "added") return "added";
-    if (ctx.existingIds.indexOf("morning:" + offerId) !== -1) return "added";
-    if (ctx.decisions[offerId] === "later") return "later";
-    return "pending";
-  }
-
   function getMorningEmbeddable(embedId) {
-    var embeddables = RECOMMENDATION_MATRIX && RECOMMENDATION_MATRIX.embeddables;
-    if (!Array.isArray(embeddables)) return null;
-    for (var i = 0; i < embeddables.length; i++) {
-      if (embeddables[i].id === embedId) return embeddables[i];
-    }
-    return null;
+    return utils.findEmbeddableById(RECOMMENDATION_MATRIX && RECOMMENDATION_MATRIX.embeddables, embedId);
   }
 
   function pickMorningEmbeddables(dayState, options) {
+    if (!dayState) return [];
     var embeddables = RECOMMENDATION_MATRIX && RECOMMENDATION_MATRIX.embeddables;
-    if (!Array.isArray(embeddables) || !embeddables.length || !dayState) return [];
-
-    var ctx = buildEmbedContext(dayState, options);
-    var maxOffers = 2;
-
-    return embeddables
-      .filter(function (offer) {
-        if (!offer || !offer.id) return false;
-        var status = embedStatus(offer.id, ctx);
-        if (status === "later" || status === "added") return false;
-        return matchesEmbedWhen(offer.when, ctx);
-      })
-      .sort(function (a, b) {
-        return (a.priority || 99) - (b.priority || 99);
-      })
-      .slice(0, maxOffers)
-      .map(function (offer) {
-        return {
-          id: offer.id,
-          prompt: offer.prompt || "",
-          detail: offer.detail || "",
-          status: embedStatus(offer.id, ctx),
-          task: offer.task ? Object.assign({}, offer.task) : null
-        };
-      });
+    return utils.pickEmbeddables(embeddables, buildEmbedContext(dayState, options), {
+      scope: "morning",
+      max: MAX_EMBED_OFFERS
+    });
   }
 
   function getRecommendations(dayState, options) {
