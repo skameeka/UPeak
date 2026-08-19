@@ -97,6 +97,7 @@
       "planner.tasks.saveEdit": "Сохранить изменения",
       "planner.tasks.cancelEdit": "Отменить редактирование",
       "planner.tasks.distribute": "Распределить по состоянию",
+      "planner.tasks.scaleInvalid": "Укажите сложность и срочность от 1 до 5.",
 
       "planner.tasks.col.order": "№",
       "planner.tasks.col.status": "Статус",
@@ -185,6 +186,7 @@
       "planner.feedback.submit": "Отправить отзыв",
       "planner.feedback.thanks": "Спасибо! Отзыв сохранён.",
       "planner.feedback.scaleInvalid": "Укажите значение от 1 до 5 в оценке полезности.",
+      "planner.morning.scaleInvalid": "Укажите качество сна, энергию и стресс от 1 до 5.",
       "planner.evening.save": "Закрыть день",
       "planner.evening.fact": "Факт",
       "planner.evening.completed": "выполнено",
@@ -374,6 +376,7 @@
       "planner.tasks.saveEdit": "Save changes",
       "planner.tasks.cancelEdit": "Cancel editing",
       "planner.tasks.distribute": "Distribute by state",
+      "planner.tasks.scaleInvalid": "Enter difficulty and urgency from 1 to 5.",
 
       "planner.tasks.col.order": "#",
       "planner.tasks.col.status": "Status",
@@ -462,6 +465,7 @@
       "planner.feedback.submit": "Send feedback",
       "planner.feedback.thanks": "Thank you! Feedback saved.",
       "planner.feedback.scaleInvalid": "Enter a value from 1 to 5 for the usefulness rating.",
+      "planner.morning.scaleInvalid": "Enter sleep quality, energy, and stress from 1 to 5.",
       "planner.evening.save": "Close the day",
       "planner.evening.fact": "Fact",
       "planner.evening.completed": "completed",

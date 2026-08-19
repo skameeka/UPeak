@@ -39,6 +39,7 @@
       "planner.tasks.edit": "Редактировать задачу",
       "planner.tasks.delete": "Удалить задачу",
       "planner.tasks.postpone": "Перенести задачу на завтра",
+      "planner.tasks.scaleInvalid": "Укажите сложность и срочность от 1 до 5.",
       "planner.tasks.menu": "Меню задачи",
       "planner.tasks.routineChip": "Рутина",
       "planner.tasks.dragHandle": "Перетащите, чтобы изменить порядок",
@@ -66,6 +67,7 @@
       "planner.sync.error": "Ошибка синхронизации",
       "planner.feedback.thanks": "Спасибо! Отзыв сохранён.",
       "planner.feedback.scaleInvalid": "Укажите значение от 1 до 5 в оценке полезности.",
+      "planner.morning.scaleInvalid": "Укажите качество сна, энергию и стресс от 1 до 5.",
       "planner.evening.dayClosed": "День закрыт",
       "planner.evening.dayOpen": "День не закрыт",
       "planner.evening.reviewTitle": "Итог дня",
@@ -103,6 +105,7 @@
       "planner.tasks.edit": "Edit task",
       "planner.tasks.delete": "Delete task",
       "planner.tasks.postpone": "Move task to tomorrow",
+      "planner.tasks.scaleInvalid": "Enter difficulty and urgency from 1 to 5.",
       "planner.tasks.menu": "Task menu",
       "planner.tasks.routineChip": "Routine",
       "planner.tasks.dragHandle": "Drag to reorder",
@@ -130,6 +133,7 @@
       "planner.sync.error": "Sync error",
       "planner.feedback.thanks": "Thank you! Feedback saved.",
       "planner.feedback.scaleInvalid": "Enter a value from 1 to 5 for the usefulness rating.",
+      "planner.morning.scaleInvalid": "Enter sleep quality, energy, and stress from 1 to 5.",
       "planner.evening.dayClosed": "Day closed",
       "planner.evening.dayOpen": "Day not closed",
       "planner.evening.reviewTitle": "Day summary",
@@ -521,12 +525,20 @@
   byId("morningForm").addEventListener("submit", function (event) {
     event.preventDefault();
 
+    var sleepQuality = getScale1to5("sleepQuality");
+    var energy = getScale1to5("energy");
+    var stress = getScale1to5("stress");
+    if (!Number.isFinite(sleepQuality) || !Number.isFinite(energy) || !Number.isFinite(stress)) {
+      alert(t("planner.morning.scaleInvalid"));
+      return;
+    }
+
     state.morning = {
       date: today,
       sleepHours: getSleepHours(),
-      sleepQuality: getNum("sleepQuality"),
-      energy: getNum("energy"),
-      stress: getNum("stress"),
+      sleepQuality: sleepQuality,
+      energy: energy,
+      stress: stress,
       note: byId("morningNote").value.trim()
     };
 
@@ -554,16 +566,22 @@
     event.preventDefault();
 
     var parsedTitle = parseTaskTitle(byId("taskTitle").value);
+    var difficulty = getScale1to5("taskDifficulty");
+    var urgency = getScale1to5("taskUrgency");
     var formTask = {
       title: parsedTitle.title,
       routine: byId("taskRoutine").checked,
-      difficulty: getNum("taskDifficulty"),
-      urgency: getNum("taskUrgency"),
+      difficulty: difficulty,
+      urgency: urgency,
       duration: getNum("taskDuration")
     };
 
     if (!formTask.title) {
       alert(t("planner.alerts.titleRequired"));
+      return;
+    }
+    if (!Number.isFinite(difficulty) || !Number.isFinite(urgency)) {
+      alert(t("planner.tasks.scaleInvalid"));
       return;
     }
 
@@ -2737,10 +2755,9 @@
     var raw = String(node.value || "").trim().replace(",", ".");
     var value = Number(raw);
     if (!Number.isFinite(value)) return NaN;
-    var rounded = Math.round(value);
-    if (rounded < 1 || rounded > 5) return NaN;
-    node.value = String(rounded);
-    return rounded;
+    if (!Number.isInteger(value) || value < 1 || value > 5) return NaN;
+    node.value = String(value);
+    return value;
   }
 
   function getSleepHours() {
