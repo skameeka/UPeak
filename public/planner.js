@@ -719,6 +719,7 @@
     refreshInterventionBlocks();
     renderEveningReview();
     updateFeedbackVisibility();
+    updateCallInviteVisibility();
 
     if (canSync) {
       sync("evening_checkout", checkoutPayload);
@@ -795,6 +796,12 @@
     card.classList.toggle("hidden", (Number(state.completedDays) || 0) < 3);
   }
 
+  function updateCallInviteVisibility() {
+    var card = byId("callInviteCard");
+    if (!card) return;
+    card.classList.toggle("hidden", (Number(state.completedDays) || 0) < 7);
+  }
+
   var feedbackForm = byId("feedbackForm");
   if (feedbackForm) {
     feedbackForm.addEventListener("submit", function (event) {
@@ -832,6 +839,7 @@
 
   updateFeedbackStatus();
   updateFeedbackVisibility();
+  updateCallInviteVisibility();
 
   if (window.UpeakI18n && typeof window.UpeakI18n.onChange === "function") {
     window.UpeakI18n.onChange(updateFeedbackStatus);
