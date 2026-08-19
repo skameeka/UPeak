@@ -96,7 +96,12 @@
       "planner.cardFeedback.prompt": "Помогла рекомендация?",
       "planner.cardFeedback.yes": "Да, полезно",
       "planner.cardFeedback.no": "Не очень",
-      "planner.cardFeedback.thanks": "Спасибо, учтём"
+      "planner.cardFeedback.thanks": "Спасибо, учтём",
+      "planner.callInvite.title": "Хотите созвониться после 7 дней?",
+      "planner.callInvite.text": "Расскажите, как прошёл опыт: что было удобно, что мешало и что хотелось бы изменить.",
+      "planner.callInvite.yes": "Да, хочу созвониться",
+      "planner.callInvite.no": "Нет, пока не хочу",
+      "planner.callInvite.saved": "Ответ сохранён."
     },
     en: {
       "planner.tasks.add": "Add task",
@@ -184,7 +189,12 @@
     participantIdChangeBtn: byId("participantIdChangeBtn"),
     participantIdStatus: byId("participantIdStatus"),
     morningRecommendations: byId("morningRecommendations"),
-    eveningReview: byId("eveningReview")
+    eveningReview: byId("eveningReview"),
+    callInviteCard: byId("callInviteCard"),
+    callInviteOverlay: byId("callInviteOverlay"),
+    callInviteStatus: byId("callInviteStatus"),
+    callInviteYesBtn: byId("callInviteYesBtn"),
+    callInviteNoBtn: byId("callInviteNoBtn")
   };
 
   var editingTaskId = null;
@@ -798,9 +808,35 @@
   }
 
   function updateCallInviteVisibility() {
-    var card = byId("callInviteCard");
+    var card = el.callInviteCard;
+    var overlay = el.callInviteOverlay;
     if (!card) return;
-    card.classList.toggle("hidden", (Number(state.completedDays) || 0) < 7);
+    var eligible = (Number(state.completedDays) || 0) >= 7;
+    var answered = state.callInviteResponse === "yes" || state.callInviteResponse === "no";
+    card.classList.toggle("hidden", !eligible);
+    if (overlay) overlay.classList.toggle("hidden", !eligible || answered);
+    if (el.callInviteStatus) {
+      el.callInviteStatus.textContent = answered ? t("planner.callInvite.saved") : "";
+    }
+  }
+
+  function saveCallInviteResponse(response) {
+    if (response !== "yes" && response !== "no") return;
+    state.callInviteResponse = response;
+    saveState();
+    updateCallInviteVisibility();
+    sync("call_invite_response", { response: response }).catch(function () {});
+  }
+
+  if (el.callInviteYesBtn) {
+    el.callInviteYesBtn.addEventListener("click", function () {
+      saveCallInviteResponse("yes");
+    });
+  }
+  if (el.callInviteNoBtn) {
+    el.callInviteNoBtn.addEventListener("click", function () {
+      saveCallInviteResponse("no");
+    });
   }
 
   var feedbackForm = byId("feedbackForm");
@@ -2810,7 +2846,8 @@
       morningRecommendationShownDate: "",
       eveningRecommendationShownDate: "",
       onboardingSeenAt: "",
-      finalFeedbackAt: ""
+      finalFeedbackAt: "",
+      callInviteResponse: ""
     };
 
     try {
