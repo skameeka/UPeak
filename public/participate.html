@@ -114,39 +114,6 @@
             box-shadow: none;
         }
 
-        .lang-switch {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            margin-left: 8px;
-            padding: 2px;
-            background: rgba(255, 255, 255, 0.6);
-            border: 1px solid rgba(26, 54, 93, 0.12);
-            border-radius: 999px;
-        }
-
-        .lang-switch button {
-            border: none;
-            background: transparent;
-            color: rgba(26, 54, 93, 0.65);
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 0.04em;
-            padding: 4px 10px;
-            border-radius: 999px;
-            cursor: pointer;
-            transition: background 0.2s, color 0.2s;
-        }
-
-        .lang-switch button.is-active {
-            background: rgba(239, 68, 68, 0.9);
-            color: #fff;
-        }
-
-        .lang-switch button:hover:not(.is-active) {
-            color: #1a365d;
-        }
-
         .sf-icon {
             display: inline-block;
             width: 1em;
@@ -262,11 +229,6 @@
                 </a>
                 <div class="flex items-center space-x-4">
                     <a href="index.html" class="text-muted hover:text-gray-800 transition text-sm" data-i18n="participate.back">← На главную</a>
-                    <div class="lang-switch" role="group" data-i18n-aria-label="nav.lang.aria" aria-label="Язык интерфейса">
-                        <svg class="sf-icon" style="margin:0 4px;color:#1a365d;opacity:0.65" aria-hidden="true"><use href="#sf-globe"></use></svg>
-                        <button type="button" data-lang-toggle="ru" aria-pressed="true">RU</button>
-                        <button type="button" data-lang-toggle="en" aria-pressed="false">EN</button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -451,24 +413,6 @@
                     <p class="form-error" id="telegramError" data-i18n="participate.error.telegram" data-testid="participate-telegram-error">Укажите Telegram (@username)</p>
                 </div>
 
-                <div class="mb-6" id="emailField" style="display:none">
-                    <label class="form-label" for="emailInput">
-                        <span data-i18n="participate.field.email">Email</span>
-                        <span class="accent-red">*</span>
-                    </label>
-                    <input
-                        id="emailInput"
-                        name="email"
-                        type="email"
-                        autocomplete="email"
-                        maxlength="120"
-                        class="form-input"
-                        placeholder="you@example.com"
-                        data-i18n-placeholder="participate.placeholder.email"
-                        data-testid="participate-email" />
-                    <p class="form-hint" data-i18n="participate.hint.email">We'll only use it to send you the experiment details.</p>
-                    <p class="form-error" id="emailError" data-i18n="participate.error.email" data-testid="participate-email-error">Please enter a valid email address</p>
-                </div>
 
                 <button type="submit"
                         id="submitButton"

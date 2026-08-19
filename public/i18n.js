@@ -567,18 +567,7 @@
     }
   };
 
-  function detectInitial() {
-    try {
-      var saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === "ru" || saved === "en") return saved;
-    } catch (e) {}
-    var nav = (navigator.language || navigator.userLanguage || "").toLowerCase();
-    if (nav.indexOf("ru") === 0) return "ru";
-    if (nav.indexOf("en") === 0) return "en";
-    return DEFAULT_LANG;
-  }
-
-  var current = detectInitial();
+  var current = DEFAULT_LANG;
   var listeners = [];
 
   function t(key) {
@@ -626,18 +615,11 @@
   }
 
   function setLang(lang) {
-    if (lang !== "ru" && lang !== "en") return;
+    if (lang !== "ru") return;
     current = lang;
     try { localStorage.setItem(STORAGE_KEY, lang); } catch (e) {}
     applyDom();
     listeners.forEach(function (cb) { try { cb(lang); } catch (e) {} });
-    var toggles = document.querySelectorAll("[data-lang-toggle]");
-    toggles.forEach(function (btn) {
-      var btnLang = btn.getAttribute("data-lang-toggle");
-      btn.setAttribute("aria-pressed", btnLang === current ? "true" : "false");
-      if (btnLang === current) btn.classList.add("is-active");
-      else btn.classList.remove("is-active");
-    });
   }
 
   function getLang() { return current; }
@@ -645,11 +627,6 @@
   function onChange(cb) { if (typeof cb === "function") listeners.push(cb); }
 
   function init() {
-    document.querySelectorAll("[data-lang-toggle]").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        setLang(btn.getAttribute("data-lang-toggle"));
-      });
-    });
     setLang(current);
   }
 

@@ -7,16 +7,12 @@
   var nameInput = document.getElementById("nameInput");
   var phoneInput = document.getElementById("phoneInput");
   var telegramInput = document.getElementById("telegramInput");
-  var emailInput = document.getElementById("emailInput");
-  var telegramField = document.getElementById("telegramField");
-  var emailField = document.getElementById("emailField");
   var submitButton = document.getElementById("submitButton");
   var statusBanner = document.getElementById("statusBanner");
 
   var nameError = document.getElementById("nameError");
   var phoneError = document.getElementById("phoneError");
   var telegramError = document.getElementById("telegramError");
-  var emailError = document.getElementById("emailError");
 
   var SURVEY_QUESTIONS = [
     { key: "q1", name: "surveyQ1", groupId: "surveyQ1Group", errorId: "surveyQ1Error", textKey: "participate.survey.q1.text" },
@@ -53,13 +49,6 @@
   }
 
   var SESSION_ID = generateSessionId();
-
-  function getLang() {
-    if (window.UpeakI18n && typeof window.UpeakI18n.getLang === "function") {
-      return window.UpeakI18n.getLang();
-    }
-    return document.documentElement.getAttribute("lang") || "ru";
-  }
 
   function t(key, fallback) {
     if (window.UpeakI18n && typeof window.UpeakI18n.t === "function") {
@@ -127,7 +116,6 @@
     setFieldError(nameInput, nameError, null);
     setFieldError(phoneInput, phoneError, null);
     setFieldError(telegramInput, telegramError, null);
-    setFieldError(emailInput, emailError, null);
     SURVEY_QUESTIONS.forEach(function (q) { setSurveyError(q, null); });
   }
 
@@ -165,39 +153,10 @@
     return v ? "@" + v : "";
   }
 
-  function normalizeEmail(value) {
-    return String(value || "").trim();
-  }
-
   var TELEGRAM_USERNAME_RE = /^[A-Za-z0-9_]{3,32}$/;
-  // Pragmatic email regex: local@domain.tld with allowed local chars.
-  var EMAIL_RE = /^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/;
-
-  function applyLangVisibility() {
-    var lang = getLang();
-    var isEn = lang === "en";
-    if (telegramField) telegramField.style.display = isEn ? "none" : "";
-    if (emailField) emailField.style.display = isEn ? "" : "none";
-    if (telegramInput) {
-      if (isEn) telegramInput.removeAttribute("required");
-      else telegramInput.setAttribute("required", "required");
-    }
-    if (emailInput) {
-      if (isEn) emailInput.setAttribute("required", "required");
-      else emailInput.removeAttribute("required");
-    }
-    // Clear errors on the hidden field so they don't linger on next language switch.
-    if (isEn) {
-      setFieldError(telegramInput, telegramError, null);
-    } else {
-      setFieldError(emailInput, emailError, null);
-    }
-  }
-
   function validate() {
     clearFieldErrors();
     var ok = true;
-    var lang = getLang();
 
     // Survey first — the user must answer all three.
     SURVEY_QUESTIONS.forEach(function (q) {
@@ -220,26 +179,15 @@
       ok = false;
     }
 
-    if (lang === "en") {
-      var emailRaw = normalizeEmail(emailInput && emailInput.value);
-      if (!emailRaw) {
-        setFieldError(emailInput, emailError, "participate.error.emailRequired", "Please enter your email");
-        ok = false;
-      } else if (!EMAIL_RE.test(emailRaw) || emailRaw.length > 120) {
-        setFieldError(emailInput, emailError, "participate.error.email", "Please enter a valid email address");
-        ok = false;
-      }
+    var tgRaw = (telegramInput && telegramInput.value || "").trim();
+    if (!tgRaw) {
+      setFieldError(telegramInput, telegramError, "participate.error.telegramRequired", "Укажите Telegram (@username)");
+      ok = false;
     } else {
-      var tgRaw = (telegramInput && telegramInput.value || "").trim();
-      if (!tgRaw) {
-        setFieldError(telegramInput, telegramError, "participate.error.telegramRequired", "Укажите Telegram (@username)");
+      var tgBare = tgRaw.charAt(0) === "@" ? tgRaw.slice(1) : tgRaw;
+      if (!TELEGRAM_USERNAME_RE.test(tgBare)) {
+        setFieldError(telegramInput, telegramError, "participate.error.telegram", "Имя пользователя Telegram содержит недопустимые символы");
         ok = false;
-      } else {
-        var tgBare = tgRaw.charAt(0) === "@" ? tgRaw.slice(1) : tgRaw;
-        if (!TELEGRAM_USERNAME_RE.test(tgBare)) {
-          setFieldError(telegramInput, telegramError, "participate.error.telegram", "Имя пользователя Telegram содержит недопустимые символы");
-          ok = false;
-        }
       }
     }
 
@@ -252,9 +200,6 @@
   var REGISTER_ENDPOINT = "/api/register";
 
   function buildSurveyPayload() {
-    // Send stable English answer codes plus localized labels (current language)
-    // so the sheet can render readable answers even without a separate lookup.
-    var lang = getLang();
     var survey = {};
     SURVEY_QUESTIONS.forEach(function (q) {
       var value = getSurveyValue(q.name);
@@ -270,43 +215,26 @@
       survey[q.key] = {
         question: t(q.textKey, ""),
         answer: value,
-        answerLabel: label,
-        language: lang
+        answerLabel: label
       };
     });
     return survey;
   }
 
   function buildPayload() {
-    var lang = getLang();
-    var telegramVal = "";
-    var emailVal = "";
-    var contactType = "";
-    var contactValue = "";
-
-    if (lang === "en") {
-      emailVal = normalizeEmail(emailInput && emailInput.value);
-      if (emailVal) {
-        contactType = "email";
-        contactValue = emailVal;
-      }
-    } else {
-      telegramVal = normalizeTelegram(telegramInput && telegramInput.value);
-      if (telegramVal) {
-        contactType = "telegram";
-        contactValue = telegramVal;
-      }
-    }
+    var telegramVal = normalizeTelegram(telegramInput && telegramInput.value);
+    var contactType = "telegram";
+    var contactValue = telegramVal;
 
     return {
       sessionId: SESSION_ID,
       name: (nameInput.value || "").trim(),
       phone: normalizePhone(phoneInput.value),
       telegram: telegramVal,
-      email: emailVal,
+      email: "",
       contactType: contactType,
       contactValue: contactValue,
-      language: lang,
+      language: "ru",
       sourcePage: window.location.href,
       userAgent: navigator.userAgent || "",
       submittedAt: new Date().toISOString(),
@@ -404,14 +332,13 @@
       });
   });
 
-  [nameInput, phoneInput, telegramInput, emailInput].forEach(function (input) {
+  [nameInput, phoneInput, telegramInput].forEach(function (input) {
     if (!input) return;
     input.addEventListener("input", function () {
       if (input.classList.contains("is-invalid")) {
         var errId = input.id === "nameInput" ? nameError
           : input.id === "phoneInput" ? phoneError
-          : input.id === "telegramInput" ? telegramError
-          : emailError;
+          : telegramError;
         setFieldError(input, errId, null);
       }
     });
@@ -434,11 +361,8 @@
     });
   });
 
-  applyLangVisibility();
-
   if (window.UpeakI18n && typeof window.UpeakI18n.onChange === "function") {
     window.UpeakI18n.onChange(function () {
-      applyLangVisibility();
       if (statusBanner && statusBanner.hasAttribute("data-i18n")) {
         statusBanner.textContent = t(statusBanner.getAttribute("data-i18n"), statusBanner.textContent);
       }
