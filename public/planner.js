@@ -39,6 +39,7 @@
       "planner.tasks.edit": "Редактировать задачу",
       "planner.tasks.delete": "Удалить задачу",
       "planner.tasks.postpone": "Перенести задачу на завтра",
+      "planner.tasks.scaleInvalid": "Укажите сложность и срочность от 1 до 5.",
       "planner.tasks.menu": "Меню задачи",
       "planner.tasks.routineChip": "Рутина",
       "planner.tasks.dragHandle": "Перетащите, чтобы изменить порядок",
@@ -47,6 +48,17 @@
       "planner.tasks.subtasks": "Подзадачи",
       "planner.tasks.subtaskAdd": "Добавить подзадачу",
       "planner.tasks.subtasksToggle": "Показать подзадачи",
+      "planner.onboarding.step3.desc": "Укажи важность, сложность и время выполнения. Для обязательной задачи отметь «Рутина» — она не переносится автоматически.",
+      "planner.onboarding.step4.title": "Распредели нагрузку",
+      "planner.onboarding.step4.desc": "Нажми «Распределить по состоянию». Система разложит задачи по подходящей нагрузке и времени дня.",
+      "planner.onboarding.step5.title": "Управляй задачами",
+      "planner.onboarding.step5.desc": "Поставь галочку после выполнения. В меню «⋮» можно редактировать, удалить или перенести задачу на завтра.",
+      "planner.onboarding.step6.title": "Проверь переносы",
+      "planner.onboarding.step6.desc": "Задачи, которые не вошли в нагрузку, появятся в разделе «Запланированные на завтра». Их можно вернуть сегодня или удалить.",
+      "planner.onboarding.step7.title": "Оцени результат вечером",
+      "planner.onboarding.step7.desc": "Ответь на вопросы о продуктивности, усталости и состоянии, затем закрой день.",
+      "planner.onboarding.step8.title": "Заполни финальный отзыв",
+      "planner.onboarding.step8.desc": "После третьего заполненного дня появится короткий опрос об опыте использования продукта.",
       "planner.scheduled.empty": "Список запланированного пуст",
       "planner.scheduled.restore": "Вернуть задачу на сегодня",
       "planner.scheduled.delete": "Удалить задачу",
@@ -55,6 +67,7 @@
       "planner.sync.error": "Ошибка синхронизации",
       "planner.feedback.thanks": "Спасибо! Отзыв сохранён.",
       "planner.feedback.scaleInvalid": "Укажите значение от 1 до 5 в оценке полезности.",
+      "planner.morning.scaleInvalid": "Укажите качество сна, энергию и стресс от 1 до 5.",
       "planner.evening.dayClosed": "День закрыт",
       "planner.evening.dayOpen": "День не закрыт",
       "planner.evening.reviewTitle": "Итог дня",
@@ -92,6 +105,7 @@
       "planner.tasks.edit": "Edit task",
       "planner.tasks.delete": "Delete task",
       "planner.tasks.postpone": "Move task to tomorrow",
+      "planner.tasks.scaleInvalid": "Enter difficulty and urgency from 1 to 5.",
       "planner.tasks.menu": "Task menu",
       "planner.tasks.routineChip": "Routine",
       "planner.tasks.dragHandle": "Drag to reorder",
@@ -100,6 +114,17 @@
       "planner.tasks.subtasks": "Subtasks",
       "planner.tasks.subtaskAdd": "Add subtask",
       "planner.tasks.subtasksToggle": "Toggle subtasks",
+      "planner.onboarding.step3.desc": "Specify importance, difficulty, and estimated time. For a required daily task, select “Routine” — it is not moved automatically.",
+      "planner.onboarding.step4.title": "Distribute the workload",
+      "planner.onboarding.step4.desc": "Click “Distribute by state”. The system will place tasks into a suitable workload and time slot.",
+      "planner.onboarding.step5.title": "Manage your tasks",
+      "planner.onboarding.step5.desc": "Tick the checkbox when a task is done. Use “⋮” to edit, delete, or move a task to tomorrow.",
+      "planner.onboarding.step6.title": "Check postponed tasks",
+      "planner.onboarding.step6.desc": "Tasks that do not fit the workload appear under “Scheduled for tomorrow”. You can bring them back today or remove them.",
+      "planner.onboarding.step7.title": "Evaluate the result in the evening",
+      "planner.onboarding.step7.desc": "Answer questions about productivity, tiredness, and your state, then close the day.",
+      "planner.onboarding.step8.title": "Complete the final feedback",
+      "planner.onboarding.step8.desc": "After the third completed day, a short survey about your experience will appear.",
       "planner.scheduled.empty": "Nothing scheduled yet",
       "planner.scheduled.restore": "Bring task to today",
       "planner.scheduled.delete": "Delete task",
@@ -108,6 +133,7 @@
       "planner.sync.error": "Sync error",
       "planner.feedback.thanks": "Thank you! Feedback saved.",
       "planner.feedback.scaleInvalid": "Enter a value from 1 to 5 for the usefulness rating.",
+      "planner.morning.scaleInvalid": "Enter sleep quality, energy, and stress from 1 to 5.",
       "planner.evening.dayClosed": "Day closed",
       "planner.evening.dayOpen": "Day not closed",
       "planner.evening.reviewTitle": "Day summary",
@@ -499,12 +525,20 @@
   byId("morningForm").addEventListener("submit", function (event) {
     event.preventDefault();
 
+    var sleepQuality = getScale1to5("sleepQuality");
+    var energy = getScale1to5("energy");
+    var stress = getScale1to5("stress");
+    if (!Number.isFinite(sleepQuality) || !Number.isFinite(energy) || !Number.isFinite(stress)) {
+      alert(t("planner.morning.scaleInvalid"));
+      return;
+    }
+
     state.morning = {
       date: today,
       sleepHours: getSleepHours(),
-      sleepQuality: getNum("sleepQuality"),
-      energy: getNum("energy"),
-      stress: getNum("stress"),
+      sleepQuality: sleepQuality,
+      energy: energy,
+      stress: stress,
       note: byId("morningNote").value.trim()
     };
 
@@ -532,16 +566,22 @@
     event.preventDefault();
 
     var parsedTitle = parseTaskTitle(byId("taskTitle").value);
+    var difficulty = getScale1to5("taskDifficulty");
+    var urgency = getScale1to5("taskUrgency");
     var formTask = {
       title: parsedTitle.title,
       routine: byId("taskRoutine").checked,
-      difficulty: getNum("taskDifficulty"),
-      urgency: getNum("taskUrgency"),
+      difficulty: difficulty,
+      urgency: urgency,
       duration: getNum("taskDuration")
     };
 
     if (!formTask.title) {
       alert(t("planner.alerts.titleRequired"));
+      return;
+    }
+    if (!Number.isFinite(difficulty) || !Number.isFinite(urgency)) {
+      alert(t("planner.tasks.scaleInvalid"));
       return;
     }
 
@@ -679,6 +719,7 @@
     refreshInterventionBlocks();
     renderEveningReview();
     updateFeedbackVisibility();
+    updateCallInviteVisibility();
 
     if (canSync) {
       sync("evening_checkout", checkoutPayload);
@@ -755,6 +796,12 @@
     card.classList.toggle("hidden", (Number(state.completedDays) || 0) < 3);
   }
 
+  function updateCallInviteVisibility() {
+    var card = byId("callInviteCard");
+    if (!card) return;
+    card.classList.toggle("hidden", (Number(state.completedDays) || 0) < 7);
+  }
+
   var feedbackForm = byId("feedbackForm");
   if (feedbackForm) {
     feedbackForm.addEventListener("submit", function (event) {
@@ -792,6 +839,7 @@
 
   updateFeedbackStatus();
   updateFeedbackVisibility();
+  updateCallInviteVisibility();
 
   if (window.UpeakI18n && typeof window.UpeakI18n.onChange === "function") {
     window.UpeakI18n.onChange(updateFeedbackStatus);
@@ -2715,10 +2763,9 @@
     var raw = String(node.value || "").trim().replace(",", ".");
     var value = Number(raw);
     if (!Number.isFinite(value)) return NaN;
-    var rounded = Math.round(value);
-    if (rounded < 1 || rounded > 5) return NaN;
-    node.value = String(rounded);
-    return rounded;
+    if (!Number.isInteger(value) || value < 1 || value > 5) return NaN;
+    node.value = String(value);
+    return value;
   }
 
   function getSleepHours() {

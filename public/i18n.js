@@ -97,6 +97,7 @@
       "planner.tasks.saveEdit": "Сохранить изменения",
       "planner.tasks.cancelEdit": "Отменить редактирование",
       "planner.tasks.distribute": "Распределить по состоянию",
+      "planner.tasks.scaleInvalid": "Укажите сложность и срочность от 1 до 5.",
 
       "planner.tasks.col.order": "№",
       "planner.tasks.col.status": "Статус",
@@ -155,11 +156,17 @@
       "planner.onboarding.step2.title": "Получи рекомендацию",
       "planner.onboarding.step2.desc": "Система предложит подходящий уровень нагрузки.",
       "planner.onboarding.step3.title": "Добавь задачи",
-      "planner.onboarding.step3.desc": "Укажи важность, сложность и время выполнения, затем нажми «Распределить по состоянию».",
-      "planner.onboarding.step4.title": "Отслеживай день",
-      "planner.onboarding.step4.desc": "Если задача не выполнена — укажи причину переноса.",
-      "planner.onboarding.step5.title": "Оцени результат вечером",
-      "planner.onboarding.step5.desc": "Ответь на несколько вопросов о продуктивности и состоянии.",
+      "planner.onboarding.step3.desc": "Укажи важность, сложность и время выполнения. Для обязательной задачи отметь «Рутина» — она не переносится автоматически.",
+      "planner.onboarding.step4.title": "Распредели нагрузку",
+      "planner.onboarding.step4.desc": "Нажми «Распределить по состоянию». Система разложит задачи по подходящей нагрузке и времени дня.",
+      "planner.onboarding.step5.title": "Управляй задачами",
+      "planner.onboarding.step5.desc": "Поставь галочку после выполнения. В меню «⋮» можно редактировать, удалить или перенести задачу на завтра.",
+      "planner.onboarding.step6.title": "Проверь переносы",
+      "planner.onboarding.step6.desc": "Задачи, которые не вошли в нагрузку, появятся в разделе «Запланированные на завтра». Их можно вернуть сегодня или удалить.",
+      "planner.onboarding.step7.title": "Оцени результат вечером",
+      "planner.onboarding.step7.desc": "Ответь на вопросы о продуктивности, усталости и состоянии, затем закрой день.",
+      "planner.onboarding.step8.title": "Заполни финальный отзыв",
+      "planner.onboarding.step8.desc": "После третьего заполненного дня появится короткий опрос об опыте использования продукта.",
       "planner.onboarding.close": "Понятно, начать",
 
       "planner.feedback.title": "5) Финальный отзыв",
@@ -179,6 +186,9 @@
       "planner.feedback.submit": "Отправить отзыв",
       "planner.feedback.thanks": "Спасибо! Отзыв сохранён.",
       "planner.feedback.scaleInvalid": "Укажите значение от 1 до 5 в оценке полезности.",
+      "planner.morning.scaleInvalid": "Укажите качество сна, энергию и стресс от 1 до 5.",
+      "planner.callInvite.title": "Разговор после 7 дней",
+      "planner.callInvite.text": "Вы завершили семь дней. Если хотите, можно созвониться с исследовательницей и рассказать, как прошёл опыт: что было удобно, что мешало и что хотелось бы изменить.",
       "planner.evening.save": "Закрыть день",
       "planner.evening.fact": "Факт",
       "planner.evening.completed": "выполнено",
@@ -368,6 +378,7 @@
       "planner.tasks.saveEdit": "Save changes",
       "planner.tasks.cancelEdit": "Cancel editing",
       "planner.tasks.distribute": "Distribute by state",
+      "planner.tasks.scaleInvalid": "Enter difficulty and urgency from 1 to 5.",
 
       "planner.tasks.col.order": "#",
       "planner.tasks.col.status": "Status",
@@ -426,11 +437,17 @@
       "planner.onboarding.step2.title": "Get a recommendation",
       "planner.onboarding.step2.desc": "The system will suggest a suitable workload level.",
       "planner.onboarding.step3.title": "Add tasks",
-      "planner.onboarding.step3.desc": "Specify importance, difficulty, and estimated time, then click “Distribute by state”.",
-      "planner.onboarding.step4.title": "Track your day",
-      "planner.onboarding.step4.desc": "If a task is not completed, note the reason for postponing it.",
-      "planner.onboarding.step5.title": "Evaluate the result in the evening",
-      "planner.onboarding.step5.desc": "Answer a few questions about productivity and your state.",
+      "planner.onboarding.step3.desc": "Specify importance, difficulty, and estimated time. For a required daily task, select “Routine” — it is not moved automatically.",
+      "planner.onboarding.step4.title": "Distribute the workload",
+      "planner.onboarding.step4.desc": "Click “Distribute by state”. The system will place tasks into a suitable workload and time slot.",
+      "planner.onboarding.step5.title": "Manage your tasks",
+      "planner.onboarding.step5.desc": "Tick the checkbox when a task is done. Use “⋮” to edit, delete, or move a task to tomorrow.",
+      "planner.onboarding.step6.title": "Check postponed tasks",
+      "planner.onboarding.step6.desc": "Tasks that do not fit the workload appear under “Scheduled for tomorrow”. You can bring them back today or remove them.",
+      "planner.onboarding.step7.title": "Evaluate the result in the evening",
+      "planner.onboarding.step7.desc": "Answer questions about productivity, tiredness, and your state, then close the day.",
+      "planner.onboarding.step8.title": "Complete the final feedback",
+      "planner.onboarding.step8.desc": "After the third completed day, a short survey about your experience will appear.",
       "planner.onboarding.close": "Got it, let's start",
 
       "planner.feedback.title": "5) Final feedback",
@@ -450,6 +467,9 @@
       "planner.feedback.submit": "Send feedback",
       "planner.feedback.thanks": "Thank you! Feedback saved.",
       "planner.feedback.scaleInvalid": "Enter a value from 1 to 5 for the usefulness rating.",
+      "planner.morning.scaleInvalid": "Enter sleep quality, energy, and stress from 1 to 5.",
+      "planner.callInvite.title": "Conversation after 7 days",
+      "planner.callInvite.text": "You have completed seven days. If you would like, you can have a call with the researcher and share what the experience was like: what was convenient, what got in the way, and what you would change.",
       "planner.evening.save": "Close the day",
       "planner.evening.fact": "Fact",
       "planner.evening.completed": "completed",
@@ -547,18 +567,7 @@
     }
   };
 
-  function detectInitial() {
-    try {
-      var saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === "ru" || saved === "en") return saved;
-    } catch (e) {}
-    var nav = (navigator.language || navigator.userLanguage || "").toLowerCase();
-    if (nav.indexOf("ru") === 0) return "ru";
-    if (nav.indexOf("en") === 0) return "en";
-    return DEFAULT_LANG;
-  }
-
-  var current = detectInitial();
+  var current = DEFAULT_LANG;
   var listeners = [];
 
   function t(key) {
@@ -606,18 +615,11 @@
   }
 
   function setLang(lang) {
-    if (lang !== "ru" && lang !== "en") return;
+    if (lang !== "ru") return;
     current = lang;
     try { localStorage.setItem(STORAGE_KEY, lang); } catch (e) {}
     applyDom();
     listeners.forEach(function (cb) { try { cb(lang); } catch (e) {} });
-    var toggles = document.querySelectorAll("[data-lang-toggle]");
-    toggles.forEach(function (btn) {
-      var btnLang = btn.getAttribute("data-lang-toggle");
-      btn.setAttribute("aria-pressed", btnLang === current ? "true" : "false");
-      if (btnLang === current) btn.classList.add("is-active");
-      else btn.classList.remove("is-active");
-    });
   }
 
   function getLang() { return current; }
@@ -625,11 +627,6 @@
   function onChange(cb) { if (typeof cb === "function") listeners.push(cb); }
 
   function init() {
-    document.querySelectorAll("[data-lang-toggle]").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        setLang(btn.getAttribute("data-lang-toggle"));
-      });
-    });
     setLang(current);
   }
 
