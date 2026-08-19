@@ -9,6 +9,7 @@
   var telegramInput = document.getElementById("telegramInput");
   var submitButton = document.getElementById("submitButton");
   var statusBanner = document.getElementById("statusBanner");
+  var PARTICIPANT_ID_STORAGE_KEY = "upeak_participant_id";
 
   var nameError = document.getElementById("nameError");
   var phoneError = document.getElementById("phoneError");
@@ -286,6 +287,12 @@
           var pid = result.parsed && (result.parsed.participantId ||
             (result.parsed.upstream && result.parsed.upstream.participantId));
 
+          if (pid) {
+            try {
+              localStorage.setItem(PARTICIPANT_ID_STORAGE_KEY, String(pid));
+            } catch (_e) {}
+          }
+
           if (pid && statusBanner) {
             statusBanner.innerHTML = "";
 
@@ -303,9 +310,16 @@
             hintLine.style.fontSize = "13px";
             hintLine.textContent = t("participate.id.hint", "Сохраните этот ID — он понадобится в прототипе-планировщике.");
 
+            var plannerLink = document.createElement("a");
+            plannerLink.href = "./planner.html";
+            plannerLink.style.display = "inline-block";
+            plannerLink.style.marginTop = "10px";
+            plannerLink.textContent = "Открыть планировщик";
+
             statusBanner.appendChild(baseLine);
             statusBanner.appendChild(idLine);
             statusBanner.appendChild(hintLine);
+            statusBanner.appendChild(plannerLink);
             if (typeof statusBanner.scrollIntoView === "function") {
               statusBanner.scrollIntoView({ behavior: "smooth", block: "nearest" });
             }
