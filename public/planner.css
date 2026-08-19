@@ -1347,6 +1347,11 @@ tr.task-row.drop-after td {
   margin: auto 0;
 }
 
+.call-invite-modal {
+  border: 2px solid var(--accent);
+  box-shadow: 0 18px 50px rgba(127, 29, 29, 0.28);
+}
+
 .onboarding-modal h3 {
   margin: 16px 0 8px;
 }

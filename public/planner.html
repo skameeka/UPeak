@@ -231,12 +231,24 @@
     </section>
 
     <section class="card hidden" id="callInviteCard">
-      <h2><span class="card-icon" aria-hidden="true">☎</span><span data-i18n="planner.callInvite.title">Разговор после 7 дней</span></h2>
-      <p class="muted" data-i18n="planner.callInvite.text">Вы завершили семь дней. Если хотите, можно созвониться с исследовательницей и рассказать, как прошёл опыт: что было удобно, что мешало и что хотелось бы изменить.</p>
+      <h2><span class="card-icon" aria-hidden="true">☎</span><span data-i18n="planner.callInvite.title">Хотите созвониться после 7 дней?</span></h2>
+      <p class="muted" data-i18n="planner.callInvite.text">Расскажите, как прошёл опыт: что было удобно, что мешало и что хотелось бы изменить.</p>
+      <p id="callInviteStatus" class="status" aria-live="polite"></p>
     </section>
 
     <div id="syncStatus" class="sync-status" aria-live="polite"></div>
   </main>
+
+  <div id="callInviteOverlay" class="onboarding-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="callInviteOverlayTitle">
+    <div class="onboarding-modal card call-invite-modal">
+      <h2 id="callInviteOverlayTitle"><span class="card-icon" aria-hidden="true">☎</span><span data-i18n="planner.callInvite.title">Хотите созвониться после 7 дней?</span></h2>
+      <p class="muted" data-i18n="planner.callInvite.text">Расскажите, как прошёл опыт: что было удобно, что мешало и что хотелось бы изменить.</p>
+      <div class="row">
+        <button type="button" class="btn" id="callInviteYesBtn" data-i18n="planner.callInvite.yes">Да, хочу созвониться</button>
+        <button type="button" class="btn secondary" id="callInviteNoBtn" data-i18n="planner.callInvite.no">Нет, пока не хочу</button>
+      </div>
+    </div>
+  </div>
 
   <div id="onboardingOverlay" class="onboarding-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
     <div class="onboarding-modal card">
