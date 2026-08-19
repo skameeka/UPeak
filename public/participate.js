@@ -323,6 +323,9 @@
             if (typeof statusBanner.scrollIntoView === "function") {
               statusBanner.scrollIntoView({ behavior: "smooth", block: "nearest" });
             }
+            window.setTimeout(function () {
+              window.location.assign("./planner.html");
+            }, 1200);
           }
 
           form.reset();
