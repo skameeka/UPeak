@@ -1,6 +1,7 @@
 (function () {
   var KEY = "pulseburn_planner_v3";
   var LEGACY_KEY = "pulseburn_planner_v2";
+  var PARTICIPANT_ID_STORAGE_KEY = "upeak_participant_id";
   var API_URL = "/api/events";
   var PARTICIPANT_LOOKUP_URL = "/api/participant/lookup";
   var today = new Date().toISOString().slice(0, 10);
@@ -2813,9 +2814,25 @@
     };
 
     try {
+      var registeredParticipantId = sanitizeParticipantId(
+        localStorage.getItem(PARTICIPANT_ID_STORAGE_KEY) || ""
+      );
       var saved = localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY);
-      if (!saved) return empty;
-      return Object.assign({}, empty, JSON.parse(saved));
+      if (!saved) {
+        empty.participantId = registeredParticipantId;
+        if (registeredParticipantId) {
+          localStorage.setItem(KEY, JSON.stringify(empty));
+          localStorage.removeItem(PARTICIPANT_ID_STORAGE_KEY);
+        }
+        return empty;
+      }
+      var loaded = Object.assign({}, empty, JSON.parse(saved));
+      if (registeredParticipantId && loaded.participantId !== registeredParticipantId) {
+        loaded.participantId = registeredParticipantId;
+        localStorage.setItem(KEY, JSON.stringify(loaded));
+        localStorage.removeItem(PARTICIPANT_ID_STORAGE_KEY);
+      }
+      return loaded;
     } catch (_e) {
       return empty;
     }
