@@ -2820,11 +2820,17 @@
       var saved = localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY);
       if (!saved) {
         empty.participantId = registeredParticipantId;
+        if (registeredParticipantId) {
+          localStorage.setItem(KEY, JSON.stringify(empty));
+          localStorage.removeItem(PARTICIPANT_ID_STORAGE_KEY);
+        }
         return empty;
       }
       var loaded = Object.assign({}, empty, JSON.parse(saved));
-      if (!loaded.participantId && registeredParticipantId) {
+      if (registeredParticipantId && loaded.participantId !== registeredParticipantId) {
         loaded.participantId = registeredParticipantId;
+        localStorage.setItem(KEY, JSON.stringify(loaded));
+        localStorage.removeItem(PARTICIPANT_ID_STORAGE_KEY);
       }
       return loaded;
     } catch (_e) {
