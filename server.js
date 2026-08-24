@@ -105,12 +105,13 @@ app.post("/api/register", async (req, res) => {
     });
 
     const upstream = await callAppsScript(REGISTRATION_APPS_SCRIPT_URL, body);
-    if (!upstream.ok) {
+    if (!upstream.ok || (upstream.parsed && upstream.parsed.ok === false)) {
       return res.status(502).json({
         ok: false,
         error: "Apps Script upstream error",
         status: upstream.status,
-        body: upstream.text.slice(0, 500)
+        body: upstream.text.slice(0, 500),
+        upstream: upstream.parsed
       });
     }
 
@@ -197,12 +198,13 @@ app.post("/api/events", async (req, res) => {
     });
 
     const upstream = await callAppsScript(PLANNER_APPS_SCRIPT_URL, body);
-    if (!upstream.ok) {
+    if (!upstream.ok || (upstream.parsed && upstream.parsed.ok === false)) {
       return res.status(502).json({
         ok: false,
         error: "Apps Script upstream error",
         status: upstream.status,
-        body: upstream.text.slice(0, 500)
+        body: upstream.text.slice(0, 500),
+        upstream: upstream.parsed
       });
     }
 

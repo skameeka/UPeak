@@ -1795,9 +1795,7 @@
       return;
     }
     var label = getDayStateLabel(state.dayState);
-    el.readinessValue.textContent = label
-      ? state.readiness + " · " + label
-      : String(state.readiness);
+    el.readinessValue.textContent = label || "";
   }
 
   function buildEveningReview() {
