@@ -252,6 +252,7 @@
       refreshEveningReview();
     }
     refreshInterventionBlocks();
+    updateCallInviteVisibility();
     document.addEventListener("click", closeAllRowMenus);
   }
 
