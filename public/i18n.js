@@ -271,6 +271,8 @@
       "participate.survey.q5.opt.finish": "Пытаюсь закончить всё как запланировано",
       "participate.survey.q5.opt.other": "Другое: __",
       "participate.survey.q5.opt.none": "Обычно такого не происходит",
+      "participate.survey.q5.otherLabel": "Если выбрали «Другое», напишите свой вариант (необязательно)",
+      "participate.survey.q5.otherPlaceholder": "Ваш ответ",
 
       "participate.id.assigned": "Ваш ID участника:",
       "participate.id.hint": "Сохраните этот ID — он понадобится в прототипе-планировщике.",
@@ -555,6 +557,8 @@
       "participate.survey.q5.opt.finish": "Try to finish everything as planned",
       "participate.survey.q5.opt.other": "Other: __",
       "participate.survey.q5.opt.none": "This usually does not happen",
+      "participate.survey.q5.otherLabel": "If you chose “Other”, describe it (optional)",
+      "participate.survey.q5.otherPlaceholder": "Your answer",
 
       "participate.id.assigned": "Your participant ID:",
       "participate.id.hint": "Save this ID — you'll need it in the planner prototype.",

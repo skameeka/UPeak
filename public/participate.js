@@ -7,6 +7,7 @@
   var nameInput = document.getElementById("nameInput");
   var phoneInput = document.getElementById("phoneInput");
   var telegramInput = document.getElementById("telegramInput");
+  var surveyQ5OtherInput = document.getElementById("surveyQ5Other");
   var submitButton = document.getElementById("submitButton");
   var statusBanner = document.getElementById("statusBanner");
   var PARTICIPANT_ID_STORAGE_KEY = "upeak_participant_id";
@@ -216,7 +217,10 @@
       survey[q.key] = {
         question: t(q.textKey, ""),
         answer: value,
-        answerLabel: label
+        answerLabel: label,
+        answerText: q.key === "q5" && surveyQ5OtherInput
+          ? surveyQ5OtherInput.value.trim()
+          : ""
       };
     });
     return survey;
