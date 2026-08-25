@@ -39,7 +39,8 @@ var HEADERS = [
   "Q5: " + Q5_TEXT_RU,
   "Q5 Answer",
   "Q5 Answer (label)",
-  "Status"
+  "Status",
+  "Q5 Other Answer"
 ];
 
 var Q1_VALID = { "yes_regularly": true, "sometimes": true, "no": true };
@@ -162,7 +163,8 @@ function _readSurveyEntry_(survey, key) {
   return {
     question: _sanitize_(entry.question, 500),
     answer: _sanitize_(entry.answer, 64),
-    label: _sanitize_(entry.answerLabel, 200)
+    label: _sanitize_(entry.answerLabel, 200),
+    answerText: _sanitize_(entry.answerText, 500)
   };
 }
 
@@ -384,7 +386,8 @@ function doPost(e) {
       q5.question || Q5_TEXT_RU,
       q5.answer,
       q5.label,
-      "new"
+      "new",
+      q5.answerText
     ];
     sheet.appendRow(row);
 

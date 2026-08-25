@@ -4,12 +4,14 @@
   var PARTICIPANT_ID_STORAGE_KEY = "upeak_participant_id";
   var API_URL = "/api/events";
   var PARTICIPANT_LOOKUP_URL = "/api/participant/lookup";
-  var today = new Date().toISOString().slice(0, 10);
+  function currentDate() {
+    return new Date().toISOString().slice(0, 10);
+  }
 
   function hasMorningCheckinToday() {
     return !!(
       state.morning &&
-      state.morning.date === today &&
+      state.morning.date === currentDate() &&
       state.readiness != null &&
       state.dayState &&
       state.dayState.state
@@ -26,7 +28,7 @@
   }
 
   function sanitizeMorningSession() {
-    if (!state.morning || state.morning.date !== today) {
+    if (!state.morning || state.morning.date !== currentDate()) {
       resetMorningDerivedState();
     }
   }
@@ -96,7 +98,12 @@
       "planner.cardFeedback.prompt": "Помогла рекомендация?",
       "planner.cardFeedback.yes": "Да, полезно",
       "planner.cardFeedback.no": "Не очень",
-      "planner.cardFeedback.thanks": "Спасибо, учтём"
+      "planner.cardFeedback.thanks": "Спасибо, учтём",
+      "planner.callInvite.title": "Хотите созвониться после 7 дней?",
+      "planner.callInvite.text": "Расскажите, как прошёл опыт: что было удобно, что мешало и что хотелось бы изменить.",
+      "planner.callInvite.yes": "Да, хочу созвониться",
+      "planner.callInvite.no": "Нет, пока не хочу",
+      "planner.callInvite.saved": "Ответ сохранён."
     },
     en: {
       "planner.tasks.add": "Add task",
@@ -184,7 +191,12 @@
     participantIdChangeBtn: byId("participantIdChangeBtn"),
     participantIdStatus: byId("participantIdStatus"),
     morningRecommendations: byId("morningRecommendations"),
-    eveningReview: byId("eveningReview")
+    eveningReview: byId("eveningReview"),
+    callInviteCard: byId("callInviteCard"),
+    callInviteOverlay: byId("callInviteOverlay"),
+    callInviteStatus: byId("callInviteStatus"),
+    callInviteYesBtn: byId("callInviteYesBtn"),
+    callInviteNoBtn: byId("callInviteNoBtn")
   };
 
   var editingTaskId = null;
@@ -238,10 +250,11 @@
     if (state.dayState && window.UpeakDayRecommendations) {
       state.morningRecommendations = buildMorningRecommendations();
     }
-    if (state.evening && state.evening.date === today) {
+    if (state.evening && state.evening.date === currentDate()) {
       refreshEveningReview();
     }
     refreshInterventionBlocks();
+    updateCallInviteVisibility();
     document.addEventListener("click", closeAllRowMenus);
   }
 
@@ -535,7 +548,7 @@
     }
 
     state.morning = {
-      date: today,
+      date: currentDate(),
       sleepHours: getSleepHours(),
       sleepQuality: sleepQuality,
       energy: energy,
@@ -546,7 +559,7 @@
     state.readiness = calcReadiness(state.morning);
     state.dayState = window.UpeakDayState.computeDayStateFromMorning(state.morning);
     state.morningEmbedDecisions = {};
-    state.morningEmbedDate = today;
+    state.morningEmbedDate = currentDate();
     state.morningRecommendations = buildMorningRecommendations();
     activateDailyRoutine();
     promoteScheduledForToday();
@@ -678,7 +691,7 @@
     }
 
     state.evening = {
-      date: today,
+      date: currentDate(),
       fatigue: fatigue,
       taskStart: taskStart,
       planOverload: planOverload,
@@ -694,18 +707,18 @@
     var checkoutPayload = buildEveningSyncPayload();
     var canSync = requireVerifiedParticipantId(false);
 
-    if (state.lastCompletedDate !== today) {
+    if (state.lastCompletedDate !== currentDate()) {
       if (!Array.isArray(state.completedDayDates)) {
         state.completedDayDates = [];
         for (var legacyDay = 0; legacyDay < (Number(state.completedDays) || 0); legacyDay++) {
           state.completedDayDates.push("legacy-" + legacyDay);
         }
       }
-      if (state.completedDayDates.indexOf(today) === -1) {
-        state.completedDayDates.push(today);
+      if (state.completedDayDates.indexOf(currentDate()) === -1) {
+        state.completedDayDates.push(currentDate());
         state.completedDays = state.completedDayDates.length;
       }
-      state.lastCompletedDate = today;
+      state.lastCompletedDate = currentDate();
     }
 
     // После закрытия дня оставляем только задачи на завтра (scheduled),
@@ -798,9 +811,35 @@
   }
 
   function updateCallInviteVisibility() {
-    var card = byId("callInviteCard");
+    var card = el.callInviteCard;
+    var overlay = el.callInviteOverlay;
     if (!card) return;
-    card.classList.toggle("hidden", (Number(state.completedDays) || 0) < 7);
+    var eligible = (Number(state.completedDays) || 0) >= 7;
+    var answered = state.callInviteResponse === "yes" || state.callInviteResponse === "no";
+    card.classList.toggle("hidden", !eligible);
+    if (overlay) overlay.classList.toggle("hidden", !eligible || answered);
+    if (el.callInviteStatus) {
+      el.callInviteStatus.textContent = answered ? t("planner.callInvite.saved") : "";
+    }
+  }
+
+  function saveCallInviteResponse(response) {
+    if (response !== "yes" && response !== "no") return;
+    state.callInviteResponse = response;
+    saveState();
+    updateCallInviteVisibility();
+    sync("call_invite_response", { response: response }).catch(function () {});
+  }
+
+  if (el.callInviteYesBtn) {
+    el.callInviteYesBtn.addEventListener("click", function () {
+      saveCallInviteResponse("yes");
+    });
+  }
+  if (el.callInviteNoBtn) {
+    el.callInviteNoBtn.addEventListener("click", function () {
+      saveCallInviteResponse("no");
+    });
   }
 
   var feedbackForm = byId("feedbackForm");
@@ -854,7 +893,7 @@
     state.manualOrder = false;
     resetMorningDerivedState();
     state.scheduled = (Array.isArray(state.scheduled) ? state.scheduled : []).filter(function (item) {
-      return item && item.scheduledFor && item.scheduledFor > today;
+      return item && item.scheduledFor && item.scheduledFor > currentDate();
     });
     clearDayFormFields();
   }
@@ -978,7 +1017,7 @@
   }
 
   function activateDailyRoutine() {
-    if (state.lastRoutineResetDate === today) return;
+    if (state.lastRoutineResetDate === currentDate()) return;
 
     var routineCount = 0;
 
@@ -991,7 +1030,7 @@
       });
     });
 
-    state.lastRoutineResetDate = today;
+    state.lastRoutineResetDate = currentDate();
 
     if (routineCount > 0 && requireVerifiedParticipantId(false)) {
       sync("routine_activated", { count: routineCount });
@@ -1005,7 +1044,7 @@
     var restored = [];
 
     state.scheduled.forEach(function (item) {
-      if (item && item.scheduledFor && item.scheduledFor <= today) {
+      if (item && item.scheduledFor && item.scheduledFor <= currentDate()) {
         restored.push(item);
       } else {
         stillScheduled.push(item);
@@ -1033,7 +1072,7 @@
     saveState();
 
     if (requireVerifiedParticipantId(false)) {
-      sync("scheduled_restored", { count: restored.length, date: today });
+      sync("scheduled_restored", { count: restored.length, date: currentDate() });
     }
   }
 
@@ -1759,9 +1798,7 @@
       return;
     }
     var label = getDayStateLabel(state.dayState);
-    el.readinessValue.textContent = label
-      ? state.readiness + " · " + label
-      : String(state.readiness);
+    el.readinessValue.textContent = label || "";
   }
 
   function buildEveningReview() {
@@ -1798,7 +1835,7 @@
   }
 
   function restoreEveningForm() {
-    if (!state.evening || state.evening.date !== today) return;
+    if (!state.evening || state.evening.date !== currentDate()) return;
     var e = state.evening;
     if (byId("fatigue") && e.fatigue != null) byId("fatigue").value = String(e.fatigue);
     if (byId("eveningTaskStart") && e.taskStart != null) byId("eveningTaskStart").value = String(e.taskStart);
@@ -1823,7 +1860,7 @@
   }
 
   function refreshEveningReview() {
-    if (state.evening && state.evening.date === today) {
+    if (state.evening && state.evening.date === currentDate()) {
       state.eveningReview = buildEveningReview();
     }
   }
@@ -1882,7 +1919,7 @@
 
   function getEveningEmbedContext() {
     var decisions = {};
-    if (state.evening && state.evening.date === today && state.eveningEmbedDecisions) {
+    if (state.evening && state.evening.date === currentDate() && state.eveningEmbedDecisions) {
       decisions = state.eveningEmbedDecisions;
     }
     var morningDecisions = {};
@@ -1915,7 +1952,7 @@
     if (!state.eveningEmbedDecisions || typeof state.eveningEmbedDecisions !== "object") {
       state.eveningEmbedDecisions = {};
     }
-    if (!state.eveningEmbedDate) state.eveningEmbedDate = today;
+    if (!state.eveningEmbedDate) state.eveningEmbedDate = currentDate();
   }
 
   function findEveningEmbedOffer(embedId) {
@@ -1945,7 +1982,7 @@
     }
     if (state.tasks.some(function (task) { return task.recommendationId === recId; })) {
       state.eveningEmbedDecisions[embedId] = "added";
-      state.eveningEmbedDate = today;
+      state.eveningEmbedDate = currentDate();
       saveState();
       refreshEveningReview();
       renderEveningReview();
@@ -1972,7 +2009,7 @@
     state.tasks.push(newTask);
 
     state.eveningEmbedDecisions[embedId] = "added";
-    state.eveningEmbedDate = today;
+    state.eveningEmbedDate = currentDate();
     saveState();
     renderTasks();
     refreshEveningReview();
@@ -1995,7 +2032,7 @@
   function deferEveningEmbed(embedId) {
     ensureEveningEmbedState();
     state.eveningEmbedDecisions[embedId] = "later";
-    state.eveningEmbedDate = today;
+    state.eveningEmbedDate = currentDate();
     saveState();
     refreshEveningReview();
     renderEveningReview();
@@ -2004,7 +2041,7 @@
   function getCardFeedback(scope) {
     var key = scope === "evening" ? "eveningCardFeedback" : "morningCardFeedback";
     var fb = state[key];
-    if (!fb || fb.date !== today) return null;
+    if (!fb || fb.date !== currentDate()) return null;
     return fb;
   }
 
@@ -2014,7 +2051,7 @@
       ? (rec.card_id || rec.decision_key || rec.mode)
       : null;
     state[key] = {
-      date: today,
+      date: currentDate(),
       helpful: !!helpful,
       decision_key: cardId,
       completion_rate: rec && rec.completionRate != null ? rec.completionRate : null
@@ -2032,8 +2069,8 @@
   function maybeSyncRecommendationShown(scope, rec) {
     if (!rec) return;
     var key = scope === "evening" ? "eveningRecommendationShownDate" : "morningRecommendationShownDate";
-    if (state[key] === today) return;
-    state[key] = today;
+    if (state[key] === currentDate()) return;
+    state[key] = currentDate();
     saveState();
 
     var cardId = rec.card_id || rec.decision_key || rec.mode || "";
@@ -2111,7 +2148,7 @@
     if (!state.morningEmbedDecisions || typeof state.morningEmbedDecisions !== "object") {
       state.morningEmbedDecisions = {};
     }
-    if (!state.morningEmbedDate) state.morningEmbedDate = today;
+    if (!state.morningEmbedDate) state.morningEmbedDate = currentDate();
   }
 
   function addMorningEmbedToPlan(embedId) {
@@ -2126,7 +2163,7 @@
     }
     if (state.tasks.some(function (task) { return task.recommendationId === recId; })) {
       state.morningEmbedDecisions[embedId] = "added";
-      state.morningEmbedDate = today;
+      state.morningEmbedDate = currentDate();
       saveState();
       state.morningRecommendations = buildMorningRecommendations();
       renderMorningRecommendations();
@@ -2153,7 +2190,7 @@
     state.tasks.push(newTask);
 
     state.morningEmbedDecisions[embedId] = "added";
-    state.morningEmbedDate = today;
+    state.morningEmbedDate = currentDate();
     saveState();
     renderTasks();
     state.morningRecommendations = buildMorningRecommendations();
@@ -2181,7 +2218,7 @@
   function deferMorningEmbed(embedId) {
     ensureMorningEmbedState();
     state.morningEmbedDecisions[embedId] = "later";
-    state.morningEmbedDate = today;
+    state.morningEmbedDate = currentDate();
     saveState();
     state.morningRecommendations = buildMorningRecommendations();
     renderMorningRecommendations();
@@ -2346,7 +2383,7 @@
       renderMorningRecommendations();
     }
 
-    if (state.evening && state.evening.date === today) {
+    if (state.evening && state.evening.date === currentDate()) {
       refreshEveningReview();
       renderEveningReview();
     } else {
@@ -2405,7 +2442,7 @@
     if (!container) return;
 
     var review = state.eveningReview;
-    var show = review && state.evening && state.evening.date === today;
+    var show = review && state.evening && state.evening.date === currentDate();
 
     if (!show) {
       container.classList.add("hidden");
@@ -2461,7 +2498,7 @@
 
   function updateDayStatus() {
     if (!el.dayStatus) return;
-    var closedToday = !!(state.dayClosedAt && state.evening && state.evening.date === today);
+    var closedToday = !!(state.dayClosedAt && state.evening && state.evening.date === currentDate());
     el.dayStatus.textContent = closedToday ? t("planner.evening.dayClosed") : t("planner.evening.dayOpen");
   }
 
@@ -2609,7 +2646,7 @@
       source: "pulseburn-planner",
       eventType: eventType,
       timestamp: new Date().toISOString(),
-      date: today,
+      date: currentDate(),
       sessionId: state.sessionId,
       participantId: state.participantId || "",
       userId: state.participantId || "",
@@ -2810,7 +2847,8 @@
       morningRecommendationShownDate: "",
       eveningRecommendationShownDate: "",
       onboardingSeenAt: "",
-      finalFeedbackAt: ""
+      finalFeedbackAt: "",
+      callInviteResponse: ""
     };
 
     try {

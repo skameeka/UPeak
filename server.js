@@ -33,7 +33,8 @@ const ALLOWED_EVENT_TYPES = new Set([
   "evening_embed_added",
   "morning_recommendation_shown",
   "evening_recommendation_shown",
-  "final_feedback"
+  "final_feedback",
+  "call_invite_response"
 ]);
 
 app.use(express.json({ limit: "256kb" }));
@@ -104,12 +105,13 @@ app.post("/api/register", async (req, res) => {
     });
 
     const upstream = await callAppsScript(REGISTRATION_APPS_SCRIPT_URL, body);
-    if (!upstream.ok) {
+    if (!upstream.ok || (upstream.parsed && upstream.parsed.ok === false)) {
       return res.status(502).json({
         ok: false,
         error: "Apps Script upstream error",
         status: upstream.status,
-        body: upstream.text.slice(0, 500)
+        body: upstream.text.slice(0, 500),
+        upstream: upstream.parsed
       });
     }
 
@@ -196,12 +198,13 @@ app.post("/api/events", async (req, res) => {
     });
 
     const upstream = await callAppsScript(PLANNER_APPS_SCRIPT_URL, body);
-    if (!upstream.ok) {
+    if (!upstream.ok || (upstream.parsed && upstream.parsed.ok === false)) {
       return res.status(502).json({
         ok: false,
         error: "Apps Script upstream error",
         status: upstream.status,
-        body: upstream.text.slice(0, 500)
+        body: upstream.text.slice(0, 500),
+        upstream: upstream.parsed
       });
     }
 

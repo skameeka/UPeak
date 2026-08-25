@@ -198,7 +198,8 @@ var ALLOWED_EVENTS = {
   evening_embed_added: true,
   morning_recommendation_shown: true,
   evening_recommendation_shown: true,
-  final_feedback: true
+  final_feedback: true,
+  call_invite_response: true
 };
 
 function doGet(_e) {
