@@ -2866,7 +2866,14 @@
       }
       var loaded = Object.assign({}, empty, JSON.parse(saved));
       if (registeredParticipantId && loaded.participantId !== registeredParticipantId) {
+        // Сохраняем feedback от предыдущего пользователя перед сменой
+        var previousFeedback = loaded.finalFeedbackAt;
+        var previousCompletedDays = loaded.completedDays;
         loaded.participantId = registeredParticipantId;
+        // Восстанавливаем feedback - не должен теряться при смене участника
+        if (previousFeedback) {
+          loaded.finalFeedbackAt = previousFeedback;
+        }
         localStorage.setItem(KEY, JSON.stringify(loaded));
         localStorage.removeItem(PARTICIPANT_ID_STORAGE_KEY);
       }

@@ -317,8 +317,20 @@
             var plannerLink = document.createElement("a");
             plannerLink.href = "./planner.html";
             plannerLink.style.display = "inline-block";
-            plannerLink.style.marginTop = "10px";
-            plannerLink.textContent = "Открыть планировщик";
+            plannerLink.style.marginTop = "16px";
+            plannerLink.style.padding = "12px 20px";
+            plannerLink.style.backgroundColor = "#ef4444";
+            plannerLink.style.color = "#ffffff";
+            plannerLink.style.borderRadius = "8px";
+            plannerLink.style.textDecoration = "none";
+            plannerLink.style.fontWeight = "600";
+            plannerLink.style.fontSize = "14px";
+            plannerLink.style.border = "none";
+            plannerLink.style.cursor = "pointer";
+            plannerLink.style.transition = "background 0.2s ease";
+            plannerLink.textContent = "→ Открыть планировщик";
+            plannerLink.onmouseover = function() { plannerLink.style.backgroundColor = "#dc2626"; };
+            plannerLink.onmouseout = function() { plannerLink.style.backgroundColor = "#ef4444"; };
 
             statusBanner.appendChild(baseLine);
             statusBanner.appendChild(idLine);

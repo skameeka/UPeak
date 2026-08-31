@@ -648,6 +648,12 @@ table {
   overflow: visible;
 }
 
+/* Wrapper для мобильного скролла */
+.table-wrapper {
+  margin-top: 14px;
+  border-radius: 10px;
+}
+
 th,
 td {
   border-bottom: 1px solid var(--line);
@@ -1240,13 +1246,38 @@ tr.task-row.drop-after td {
     font-size: 13px;
   }
 
+  .table-wrapper {
+    margin-left: -16px;
+    margin-right: -16px;
+    border-radius: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-wrapper table {
+    min-width: 600px;
+    margin: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
   table,
   thead,
   tbody,
   th,
   td,
   tr {
-    font-size: 13px;
+    font-size: 12px;
+  }
+
+  td,
+  th {
+    padding: 8px 6px;
+    white-space: nowrap;
+  }
+
+  .slot-text {
+    max-width: 100px;
   }
 }
 .table-actions {

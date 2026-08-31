@@ -108,21 +108,23 @@
         </div>
       </form>
 
-      <table>
-        <thead>
-          <tr>
-            <th data-i18n="planner.tasks.col.order">№</th>
-            <th data-i18n="planner.tasks.col.status">Статус</th>
-            <th data-i18n="planner.tasks.col.title">Задача</th>
-            <th data-i18n="planner.tasks.col.diff">Сложн.</th>
-            <th data-i18n="planner.tasks.col.urg">Срочн.</th>
-            <th data-i18n="planner.tasks.col.min">Мин</th>
-            <th data-i18n="planner.tasks.col.slot">Рекомендованный слот</th>
-            <th data-i18n="planner.tasks.col.actions">Действия</th>
-          </tr>
-        </thead>
-        <tbody id="taskTableBody"></tbody>
-      </table>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="planner.tasks.col.order">№</th>
+              <th data-i18n="planner.tasks.col.status">Статус</th>
+              <th data-i18n="planner.tasks.col.title">Задача</th>
+              <th data-i18n="planner.tasks.col.diff">Сложн.</th>
+              <th data-i18n="planner.tasks.col.urg">Срочн.</th>
+              <th data-i18n="planner.tasks.col.min">Мин</th>
+              <th data-i18n="planner.tasks.col.slot">Рекомендованный слот</th>
+              <th data-i18n="planner.tasks.col.actions">Действия</th>
+            </tr>
+          </thead>
+          <tbody id="taskTableBody"></tbody>
+        </table>
+      </div>
 
       <p class="hint muted" data-i18n="planner.tasks.reorderHint">
         Перетаскивайте задачи за ручку ⋮⋮ слева, чтобы выстроить удобный порядок.
@@ -139,19 +141,21 @@
         Задачи, которые после распределения по состоянию помечены как «перенести на завтра». Утром следующего дня они автоматически вернутся в основной список.
       </p>
 
-      <table>
-        <thead>
-          <tr>
-            <th data-i18n="planner.scheduled.col.title">Задача</th>
-            <th data-i18n="planner.scheduled.col.diff">Сложн.</th>
-            <th data-i18n="planner.scheduled.col.urg">Срочн.</th>
-            <th data-i18n="planner.scheduled.col.min">Мин</th>
-            <th data-i18n="planner.scheduled.col.date">Дата возврата</th>
-            <th data-i18n="planner.scheduled.col.actions">Действия</th>
-          </tr>
-        </thead>
-        <tbody id="scheduledTableBody"></tbody>
-      </table>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="planner.scheduled.col.title">Задача</th>
+              <th data-i18n="planner.scheduled.col.diff">Сложн.</th>
+              <th data-i18n="planner.scheduled.col.urg">Срочн.</th>
+              <th data-i18n="planner.scheduled.col.min">Мин</th>
+              <th data-i18n="planner.scheduled.col.date">Дата возврата</th>
+              <th data-i18n="planner.scheduled.col.actions">Действия</th>
+            </tr>
+          </thead>
+          <tbody id="scheduledTableBody"></tbody>
+        </table>
+      </div>
     </section>
 
     <section class="card">
