@@ -86,7 +86,10 @@ async function callAppsScript(url, body) {
 
 // Telegram Bot API functions
 async function sendTelegramMessage(chatId, text, replyMarkup = null) {
-  if (!TELEGRAM_BOT_TOKEN) return { ok: false, error: "Telegram bot token not configured" };
+  if (!TELEGRAM_BOT_TOKEN) {
+    console.error("❌ Telegram bot token not configured");
+    return { ok: false, error: "Telegram bot token not configured" };
+  }
 
   const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
   const payload = {
@@ -100,6 +103,7 @@ async function sendTelegramMessage(chatId, text, replyMarkup = null) {
   }
 
   try {
+    console.log(`Sending message to ${chatId}. Token exists: ${TELEGRAM_BOT_TOKEN ? "yes" : "no"}`);
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -107,6 +111,7 @@ async function sendTelegramMessage(chatId, text, replyMarkup = null) {
     });
 
     const data = await response.json();
+    console.log(`Telegram API response:`, data);
     return { ok: data.ok, data };
   } catch (error) {
     console.error("sendTelegramMessage error:", error);
@@ -286,6 +291,7 @@ app.get("/participate", (_req, res) => {
 app.post("/api/telegram/webhook", async (req, res) => {
   try {
     const update = req.body || {};
+    console.log("Telegram update received:", JSON.stringify(update).slice(0, 200));
 
     // Respond immediately to Telegram
     res.status(200).json({ ok: true });
@@ -301,7 +307,9 @@ app.post("/api/telegram/webhook", async (req, res) => {
         `Я помогу тебе отслеживать твоё состояние и определять риск перегруза.\n\n` +
         `Введи свой ID участника (он в ссылке приложения)`;
 
-      await sendTelegramMessage(chatId, welcomeText);
+      console.log(`Sending welcome message to chat ${chatId}`);
+      const result = await sendTelegramMessage(chatId, welcomeText);
+      console.log(`Welcome message result:`, result);
       return;
     }
 
