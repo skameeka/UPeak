@@ -40,7 +40,10 @@ var HEADERS = [
   "Q5 Answer",
   "Q5 Answer (label)",
   "Status",
-  "Q5 Other Answer"
+  "Q5 Other Answer",
+  "Telegram User ID",
+  "Telegram Chat ID",
+  "Telegram Name"
 ];
 
 var Q1_VALID = { "yes_regularly": true, "sometimes": true, "no": true };
@@ -293,6 +296,73 @@ function doPost(e) {
       return _jsonOutput_({ ok: false, error: "unauthorized" });
     }
 
+    // Handle Telegram linking
+    if (data.action === "link_telegram") {
+      var participantId = _sanitize_(data.participantId, 40).toUpperCase();
+      var telegramUserId = _sanitize_(data.telegramUserId, 40);
+      var telegramChatId = _sanitize_(data.telegramChatId, 40);
+      var telegramName = _sanitize_(data.telegramName, 100);
+
+      if (!participantId || !telegramUserId || !telegramChatId) {
+        return _jsonOutput_({ ok: false, error: "missing_telegram_fields" });
+      }
+
+      var sheet = _getSheet_();
+      var found = _findParticipantRow_(sheet, participantId);
+      if (!found) {
+        return _jsonOutput_({ ok: false, error: "participant_not_found" });
+      }
+
+      // Update row with Telegram info
+      var row = found.rowNum;
+      var values = sheet.getRange(row, 1, 1, HEADERS.length).getValues()[0];
+      
+      // Find Telegram columns
+      var telegramUserIdCol = HEADERS.indexOf("Telegram User ID") + 1;
+      var telegramChatIdCol = HEADERS.indexOf("Telegram Chat ID") + 1;
+      var telegramNameCol = HEADERS.indexOf("Telegram Name") + 1;
+
+      sheet.getRange(row, telegramUserIdCol).setValue(telegramUserId);
+      sheet.getRange(row, telegramChatIdCol).setValue(telegramChatId);
+      sheet.getRange(row, telegramNameCol).setValue(telegramName);
+
+      return _jsonOutput_({ ok: true, participantId: participantId, telegramLinked: true });
+    }
+
+    // Handle daily checkin save
+    if (data.action === "save_daily_checkin") {
+      var telegramUserId = _sanitize_(data.telegramUserId, 40);
+      var state = _sanitize_(data.state, 20);
+      var sleepHours = data.sleepHours ? Number(data.sleepHours) : null;
+
+      if (!telegramUserId || !state) {
+        return _jsonOutput_({ ok: false, error: "missing_checkin_fields" });
+      }
+
+      if (!["normal", "tense", "overloaded"].includes(state)) {
+        return _jsonOutput_({ ok: false, error: "invalid_state" });
+      }
+
+      var sheet = _getSheet_();
+      var row = _findParticipantRowByTelegramId_(sheet, telegramUserId);
+      if (!row) {
+        return _jsonOutput_({ ok: false, error: "participant_not_found" });
+      }
+
+      var participantId = sheet.getRange(row.rowNum, 1).getValue();
+      var dailyCheckinsSheet = _getDailyCheckinsSheet_();
+
+      dailyCheckinsSheet.appendRow([
+        participantId,
+        new Date().toDateString(),
+        state,
+        sleepHours || "",
+        new Date().toISOString()
+      ]);
+
+      return _jsonOutput_({ ok: true, participantId: participantId, checkinSaved: true });
+    }
+
     var sessionId = _sanitize_(data.sessionId, 64);
     var name = _sanitize_(data.name, 120);
     var phone = _sanitize_(data.phone, 32);
@@ -387,7 +457,10 @@ function doPost(e) {
       q5.answer,
       q5.label,
       "new",
-      q5.answerText
+      q5.answerText,
+      "",
+      "",
+      ""
     ];
     sheet.appendRow(row);
 
@@ -401,8 +474,38 @@ function doPost(e) {
   }
 }
 
+function _findParticipantRowByTelegramId_(sheet, telegramUserId) {
+  var data = sheet.getDataRange().getValues();
+  var telegramUserIdCol = HEADERS.indexOf("Telegram User ID");
+  if (telegramUserIdCol < 0) return null;
+
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][telegramUserIdCol] === telegramUserId) {
+      return { rowNum: i + 1, values: data[i] };
+    }
+  }
+  return null;
+}
+
+function _getDailyCheckinsSheet_() {
+  var ss = _getSpreadsheet_();
+  var sheetName = "Daily_Checkins";
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    var headers = ["Participant ID", "Date", "State", "Sleep Hours", "Timestamp"];
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
+    sheet.autoResizeColumns(1, headers.length);
+  }
+  return sheet;
+}
+
 function setup() {
   var sheet = _getSheet_();
   _backfillMissingIds_(sheet);
+  var dailySheet = _getDailyCheckinsSheet_();
   Logger.log("Sheet ready: " + sheet.getName() + " with " + sheet.getLastRow() + " rows.");
+  Logger.log("Daily Checkins sheet ready: " + dailySheet.getName());
 }

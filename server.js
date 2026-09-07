@@ -15,6 +15,8 @@ const PLANNER_APPS_SCRIPT_TOKEN =
 const REGISTRATION_APPS_SCRIPT_TOKEN =
   process.env.REGISTRATION_APPS_SCRIPT_TOKEN || "";
 
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
+
 const ALLOWED_EVENT_TYPES = new Set([
   "morning_checkin",
   "task_created",
@@ -80,6 +82,59 @@ async function callAppsScript(url, body) {
   }
 
   return { ok: response.ok, status: response.status, parsed, text };
+}
+
+// Telegram Bot API functions
+async function sendTelegramMessage(chatId, text, replyMarkup = null) {
+  if (!TELEGRAM_BOT_TOKEN) return { ok: false, error: "Telegram bot token not configured" };
+
+  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+  const payload = {
+    chat_id: chatId,
+    text: text,
+    parse_mode: "HTML"
+  };
+
+  if (replyMarkup) {
+    payload.reply_markup = replyMarkup;
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+    return { ok: data.ok, data };
+  } catch (error) {
+    console.error("sendTelegramMessage error:", error);
+    return { ok: false, error: error.message };
+  }
+}
+
+function buildDailyCheckInKeyboard() {
+  return {
+    inline_keyboard: [
+      [
+        { text: "✅ Нормально", callback_data: "checkin_normal" },
+        { text: "⚠️ Напряжённо", callback_data: "checkin_tense" },
+        { text: "🔴 Перегружен", callback_data: "checkin_overloaded" }
+      ]
+    ]
+  };
+}
+
+function buildRegisterKeyboard(participantId) {
+  return {
+    inline_keyboard: [
+      [
+        { text: "✅ Подтвердить", callback_data: `confirm_participant_${participantId}` },
+        { text: "❌ Отмена", callback_data: "cancel_register" }
+      ]
+    ]
+  };
 }
 
 app.get("/api/health", (_req, res) => {
@@ -225,6 +280,169 @@ app.get("/planner", (_req, res) => {
 
 app.get("/participate", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "participate.html"));
+});
+
+// Telegram Webhook endpoint
+app.post("/api/telegram/webhook", async (req, res) => {
+  try {
+    const update = req.body || {};
+
+    // Respond immediately to Telegram
+    res.status(200).json({ ok: true });
+
+    // Handle message with /start command
+    if (update.message && update.message.text === "/start") {
+      const userId = update.message.from.id;
+      const chatId = update.message.chat.id;
+      const userName = update.message.from.first_name || "User";
+
+      const welcomeText =
+        `Привет, ${userName}! 👋\n\n` +
+        `Я помогу тебе отслеживать твоё состояние и определять риск перегруза.\n\n` +
+        `Введи свой ID участника (он в ссылке приложения)`;
+
+      await sendTelegramMessage(chatId, welcomeText);
+      return;
+    }
+
+    // Handle participant ID registration
+    if (update.message && update.message.text) {
+      const userId = update.message.from.id;
+      const chatId = update.message.chat.id;
+      const participantId = sanitizeString(update.message.text, 40);
+
+      // Verify participant exists
+      if (!REGISTRATION_APPS_SCRIPT_URL) {
+        await sendTelegramMessage(chatId, "❌ Ошибка конфигурации. Попробуй позже.");
+        return;
+      }
+
+      const lookupUrl =
+        REGISTRATION_APPS_SCRIPT_URL +
+        (REGISTRATION_APPS_SCRIPT_URL.indexOf("?") >= 0 ? "&" : "?") +
+        "action=lookup&id=" +
+        encodeURIComponent(participantId) +
+        (REGISTRATION_APPS_SCRIPT_TOKEN
+          ? "&proxyToken=" + encodeURIComponent(REGISTRATION_APPS_SCRIPT_TOKEN)
+          : "");
+
+      try {
+        const response = await fetch(lookupUrl, { method: "GET", redirect: "follow" });
+        const data = await response.json();
+
+        if (data.exists && data.participant) {
+          // Save Telegram connection
+          const registerBody = {
+            action: "link_telegram",
+            participantId: participantId,
+            telegramUserId: userId,
+            telegramChatId: chatId,
+            telegramName: sanitizeString(update.message.from.first_name || "User", 100),
+            proxyToken: REGISTRATION_APPS_SCRIPT_TOKEN
+          };
+
+          const registerResponse = await callAppsScript(REGISTRATION_APPS_SCRIPT_URL, registerBody);
+
+          if (registerResponse.ok && registerResponse.parsed.ok) {
+            const confirmText =
+              `✅ Отлично! Ты подключен как ${data.participant.name || "участник"}.\n\n` +
+              `Теперь я буду отправлять тебе ежедневный вопрос о твоём состоянии.\n\n` +
+              `Ответ поможет определить, находишься ли ты на грани перегруза.`;
+
+            await sendTelegramMessage(chatId, confirmText);
+            return;
+          }
+        }
+
+        await sendTelegramMessage(chatId, "❌ ID не найден. Проверь его и попробуй снова.");
+      } catch (error) {
+        console.error("Telegram lookup error:", error);
+        await sendTelegramMessage(chatId, "❌ Ошибка проверки. Попробуй позже.");
+      }
+      return;
+    }
+
+    // Handle inline button presses (callback_query)
+    if (update.callback_query) {
+      const callbackData = update.callback_query.data;
+      const userId = update.callback_query.from.id;
+      const chatId = update.callback_query.message.chat.id;
+      const messageId = update.callback_query.message.message_id;
+
+      if (callbackData.startsWith("checkin_")) {
+        const state = callbackData.replace("checkin_", "");
+        const validStates = ["normal", "tense", "overloaded"];
+
+        if (!validStates.includes(state)) {
+          return;
+        }
+
+        // Save checkin to Google Sheets via Apps Script
+        const checkinBody = {
+          action: "save_daily_checkin",
+          telegramUserId: userId,
+          state: state,
+          timestamp: new Date().toISOString(),
+          proxyToken: REGISTRATION_APPS_SCRIPT_TOKEN
+        };
+
+        const checkinResponse = await callAppsScript(REGISTRATION_APPS_SCRIPT_URL, checkinBody);
+
+        // Edit message to show response
+        const stateLabel = { normal: "✅ Нормально", tense: "⚠️ Напряжённо", overloaded: "🔴 Перегружен" }[state];
+        const responseText =
+          `${stateLabel}\n\n` +
+          `Спасибо за ответ! 📊\n\n` +
+          `Проверь сайт плани для рекомендаций, как уменьшить нагрузку.`;
+
+        try {
+          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              message_id: messageId,
+              text: responseText,
+              parse_mode: "HTML"
+            })
+          });
+        } catch (error) {
+          console.error("Edit message error:", error);
+        }
+
+        return;
+      }
+    }
+  } catch (error) {
+    console.error("Telegram webhook error:", error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// Send daily checkin question to Telegram
+app.post("/api/telegram/send-daily-question", async (req, res) => {
+  try {
+    const { telegramChatId, participantId } = req.body || {};
+
+    if (!telegramChatId) {
+      return res.status(400).json({ ok: false, error: "telegramChatId is required" });
+    }
+
+    const questionText =
+      `Как ты себя чувствуешь? 👋\n\n` +
+      `Это поможет определить, находишься ли ты на грани перегруза.`;
+
+    const result = await sendTelegramMessage(
+      telegramChatId,
+      questionText,
+      buildDailyCheckInKeyboard()
+    );
+
+    return res.status(200).json({ ok: result.ok, result });
+  } catch (error) {
+    console.error("POST /api/telegram/send-daily-question failed", error);
+    return res.status(500).json({ ok: false, error: "Internal server error" });
+  }
 });
 
 app.listen(PORT, () => {
