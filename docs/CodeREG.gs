@@ -43,7 +43,8 @@ var HEADERS = [
   "Q5 Other Answer",
   "Telegram User ID",
   "Telegram Chat ID",
-  "Telegram Name"
+  "Telegram Name",
+  "Telegram Username"
 ];
 
 var Q1_VALID = { "yes_regularly": true, "sometimes": true, "no": true };
@@ -133,6 +134,13 @@ function _normalizeTelegram_(value) {
   if (v.charAt(0) === "@") v = v.substring(1);
   if (!v) return "";
   return "@" + v;
+}
+
+function _normalizeTelegramHandle_(value) {
+  var v = _sanitize_(value, 64);
+  if (!v) return "";
+  if (v.charAt(0) === "@") v = v.substring(1);
+  return v.toLowerCase();
 }
 
 var EMAIL_RE = /^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/;
@@ -272,6 +280,44 @@ function doGet(e) {
       });
     }
 
+    if (action === "lookup_telegram") {
+      if (!_checkToken_(params.proxyToken)) {
+        return _jsonOutput_({ ok: false, error: "unauthorized", exists: false });
+      }
+
+      var telegramUserId = _sanitize_(params.telegramUserId, 40);
+      var telegramChatId = _sanitize_(params.telegramChatId, 40);
+      var telegramUsername = _normalizeTelegramHandle_(params.telegramUsername);
+      var sheet = _getSheet_();
+      var row = null;
+
+      if (telegramUserId) {
+        row = _findParticipantRowByTelegramId_(sheet, telegramUserId);
+      }
+      if (!row && telegramUsername) {
+        row = _findParticipantRowByTelegramUsername_(sheet, telegramUsername);
+      }
+      if (!row && telegramChatId) {
+        row = _findParticipantRowByTelegramChatId_(sheet, telegramChatId);
+      }
+      if (!row) {
+        return _jsonOutput_({ ok: true, exists: false });
+      }
+
+      var participantId = String(sheet.getRange(row.rowNum, 1).getValue() || "").trim().toUpperCase();
+      return _jsonOutput_({
+        ok: true,
+        exists: true,
+        participantId: participantId,
+        participant: {
+          participantId: participantId,
+          name: row.values[3] || "",
+          language: row.values[9] || "",
+          status: row.values[22] || ""
+        }
+      });
+    }
+
     return _jsonOutput_({
       ok: true,
       service: "upeak-participants",
@@ -296,12 +342,72 @@ function doPost(e) {
       return _jsonOutput_({ ok: false, error: "unauthorized" });
     }
 
+    // Handle creation from Telegram-first onboarding
+    if (data.action === "create_from_telegram") {
+      var telegramUserId = _sanitize_(data.telegramUserId, 40);
+      var telegramChatId = _sanitize_(data.telegramChatId, 40);
+      var telegramName = _sanitize_(data.telegramName, 100) || "Telegram User";
+      var telegramUsername = _sanitize_(data.telegramUsername, 100);
+
+      if (!telegramUserId || !telegramChatId) {
+        return _jsonOutput_({ ok: false, error: "missing_telegram_fields" });
+      }
+
+      var sheet = _getSheet_();
+      var existing = _findParticipantRowByTelegramId_(sheet, telegramUserId);
+      if (existing) {
+        var participantId = String(sheet.getRange(existing.rowNum, 1).getValue() || "").trim().toUpperCase();
+        return _jsonOutput_({ ok: true, participantId: participantId, telegramLinked: true, exists: true });
+      }
+
+      var participantId = _nextParticipantId_(sheet);
+      var now = new Date();
+      var row = [
+        participantId,
+        now,
+        "telegram-first",
+        telegramName,
+        "",
+        telegramUsername ? "@" + telegramUsername.replace(/^@/, "") : "",
+        "",
+        "telegram",
+        telegramUsername ? "@" + telegramUsername.replace(/^@/, "") : "",
+        "ru",
+        "telegram-bot",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "new",
+        "",
+        telegramUserId,
+        telegramChatId,
+        telegramName,
+        telegramUsername ? "@" + telegramUsername.replace(/^@/, "") : ""
+      ];
+
+      sheet.appendRow(row);
+      return _jsonOutput_({ ok: true, participantId: participantId, telegramLinked: true, exists: false });
+    }
+
     // Handle Telegram linking
     if (data.action === "link_telegram") {
       var participantId = _sanitize_(data.participantId, 40).toUpperCase();
       var telegramUserId = _sanitize_(data.telegramUserId, 40);
       var telegramChatId = _sanitize_(data.telegramChatId, 40);
       var telegramName = _sanitize_(data.telegramName, 100);
+      var telegramUsername = _sanitize_(data.telegramUsername, 100);
 
       if (!participantId || !telegramUserId || !telegramChatId) {
         return _jsonOutput_({ ok: false, error: "missing_telegram_fields" });
@@ -321,10 +427,14 @@ function doPost(e) {
       var telegramUserIdCol = HEADERS.indexOf("Telegram User ID") + 1;
       var telegramChatIdCol = HEADERS.indexOf("Telegram Chat ID") + 1;
       var telegramNameCol = HEADERS.indexOf("Telegram Name") + 1;
+      var telegramUsernameCol = HEADERS.indexOf("Telegram Username") + 1;
 
       sheet.getRange(row, telegramUserIdCol).setValue(telegramUserId);
       sheet.getRange(row, telegramChatIdCol).setValue(telegramChatId);
       sheet.getRange(row, telegramNameCol).setValue(telegramName);
+      if (telegramUsernameCol > 0) {
+        sheet.getRange(row, telegramUsernameCol).setValue(telegramUsername);
+      }
 
       return _jsonOutput_({ ok: true, participantId: participantId, telegramLinked: true });
     }
@@ -480,7 +590,34 @@ function _findParticipantRowByTelegramId_(sheet, telegramUserId) {
   if (telegramUserIdCol < 0) return null;
 
   for (var i = 1; i < data.length; i++) {
-    if (data[i][telegramUserIdCol] === telegramUserId) {
+    if (String(data[i][telegramUserIdCol] || "") === String(telegramUserId)) {
+      return { rowNum: i + 1, values: data[i] };
+    }
+  }
+  return null;
+}
+
+function _findParticipantRowByTelegramUsername_(sheet, telegramUsername) {
+  var data = sheet.getDataRange().getValues();
+  var telegramUsernameCol = HEADERS.indexOf("Telegram Username");
+  if (telegramUsernameCol < 0) return null;
+
+  for (var i = 1; i < data.length; i++) {
+    var value = _normalizeTelegramHandle_(data[i][telegramUsernameCol]);
+    if (value && value === telegramUsername) {
+      return { rowNum: i + 1, values: data[i] };
+    }
+  }
+  return null;
+}
+
+function _findParticipantRowByTelegramChatId_(sheet, telegramChatId) {
+  var data = sheet.getDataRange().getValues();
+  var telegramChatIdCol = HEADERS.indexOf("Telegram Chat ID");
+  if (telegramChatIdCol < 0) return null;
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][telegramChatIdCol] || "") === String(telegramChatId)) {
       return { rowNum: i + 1, values: data[i] };
     }
   }

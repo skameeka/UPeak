@@ -147,7 +147,8 @@ app.get("/api/health", (_req, res) => {
     ok: true,
     service: "upeak-proxy",
     plannerConfigured: Boolean(PLANNER_APPS_SCRIPT_URL),
-    registrationConfigured: Boolean(REGISTRATION_APPS_SCRIPT_URL)
+    registrationConfigured: Boolean(REGISTRATION_APPS_SCRIPT_URL),
+    telegramConfigured: Boolean(TELEGRAM_BOT_TOKEN)
   });
 });
 
@@ -301,11 +302,68 @@ app.post("/api/telegram/webhook", async (req, res) => {
       const userId = update.message.from.id;
       const chatId = update.message.chat.id;
       const userName = update.message.from.first_name || "User";
+      const username = update.message.from.username || "";
 
-      const welcomeText =
+      let welcomeText =
         `Привет, ${userName}! 👋\n\n` +
-        `Я помогу тебе отслеживать твоё состояние и определять риск перегруза.\n\n` +
-        `Введи свой ID участника (он в ссылке приложения)`;
+        `Я помогу тебе отслеживать твоё состояние и определять риск перегруза.`;
+
+      if (REGISTRATION_APPS_SCRIPT_URL) {
+        try {
+          const lookupUrl =
+            REGISTRATION_APPS_SCRIPT_URL +
+            (REGISTRATION_APPS_SCRIPT_URL.indexOf("?") >= 0 ? "&" : "?") +
+            "action=lookup_telegram&telegramUserId=" +
+            encodeURIComponent(String(userId)) +
+            "&telegramUsername=" +
+            encodeURIComponent(username) +
+            "&telegramChatId=" +
+            encodeURIComponent(String(chatId)) +
+            (REGISTRATION_APPS_SCRIPT_TOKEN
+              ? "&proxyToken=" + encodeURIComponent(REGISTRATION_APPS_SCRIPT_TOKEN)
+              : "");
+
+          const response = await fetch(lookupUrl, { method: "GET", redirect: "follow" });
+          const data = await response.json();
+
+          if (data.exists && data.participant) {
+            welcomeText =
+              `Привет, ${userName}! 👋\n\n` +
+              `Ты уже привязан к участнику ${data.participant.participantId}.\n\n` +
+              `Я буду отправлять тебе ежедневные вопросы и помогать следить за состоянием.`;
+          } else {
+            const createBody = {
+              action: "create_from_telegram",
+              telegramUserId: String(userId),
+              telegramChatId: String(chatId),
+              telegramUsername: username,
+              telegramName: sanitizeString(userName, 100),
+              proxyToken: REGISTRATION_APPS_SCRIPT_TOKEN
+            };
+
+            const createResponse = await callAppsScript(REGISTRATION_APPS_SCRIPT_URL, createBody);
+
+            if (createResponse.ok && createResponse.parsed && createResponse.parsed.ok) {
+              const createdParticipantId = createResponse.parsed.participantId || "";
+              welcomeText =
+                `Привет, ${userName}! 👋\n\n` +
+                `Ты успешно зарегистрирован в Telegram-боте.\n\n` +
+                `Твой идентификатор: ${createdParticipantId}\n\n` +
+                `Я буду отправлять тебе ежедневные вопросы и помогать следить за состоянием.`;
+            } else {
+              welcomeText =
+                `Привет, ${userName}! 👋\n\n` +
+                `Я тебя распознал по Telegram, но запись в системе пока не создана.\n\n` +
+                `Попробуй ещё раз через несколько секунд.`;
+            }
+          }
+        } catch (error) {
+          console.error("Telegram linked-user lookup error:", error);
+          welcomeText =
+            `Привет, ${userName}! 👋\n\n` +
+            `Временная ошибка. Попробуй ещё раз через минуту.`;
+        }
+      }
 
       console.log(`Sending welcome message to chat ${chatId}`);
       const result = await sendTelegramMessage(chatId, welcomeText);
@@ -317,11 +375,20 @@ app.post("/api/telegram/webhook", async (req, res) => {
     if (update.message && update.message.text) {
       const userId = update.message.from.id;
       const chatId = update.message.chat.id;
-      const participantId = sanitizeString(update.message.text, 40);
+      const incomingText = sanitizeString(update.message.text, 40);
+      const participantId = incomingText.toUpperCase();
 
       // Verify participant exists
       if (!REGISTRATION_APPS_SCRIPT_URL) {
         await sendTelegramMessage(chatId, "❌ Ошибка конфигурации. Попробуй позже.");
+        return;
+      }
+
+      if (!/^UP-\d{6,}$/.test(participantId)) {
+        await sendTelegramMessage(
+          chatId,
+          "❌ Формат ID неверный. Введи его в формате: UP-000001"
+        );
         return;
       }
 
@@ -346,6 +413,7 @@ app.post("/api/telegram/webhook", async (req, res) => {
             telegramUserId: userId,
             telegramChatId: chatId,
             telegramName: sanitizeString(update.message.from.first_name || "User", 100),
+            telegramUsername: sanitizeString(update.message.from.username || "", 100),
             proxyToken: REGISTRATION_APPS_SCRIPT_TOKEN
           };
 
